@@ -1,0 +1,10 @@
+host: 'http://localhost'
+port: 9200
+auth_method: 'none'
+username: ''
+password: ''
+index_name: ''
+api_key_id: ''
+api_key: ''
+verify_ssl: true
+ca_cert: ''

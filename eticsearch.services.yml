@@ -1,0 +1,5 @@
+services:
+  eticsearch.elasticsearch_provider:
+    class: Drupal\eticsearch\Provider\ElasticsearchProvider
+    arguments:
+      - '@config.factory'

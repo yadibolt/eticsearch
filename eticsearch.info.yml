@@ -1,0 +1,5 @@
+name: 'Eticsearch'
+type: module
+description: 'Drupal 11 module for Elasticsearch providing simple vector search using AI.'
+package: Search
+core_version_requirement: ^11

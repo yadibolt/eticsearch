@@ -1,0 +1,9 @@
+{
+  "name": "drupal/eticsearch",
+  "description": "Drupal 11 module for Elasticsearch providing simple vector search using AI.",
+  "type": "drupal-module",
+  "license": "GPL-2.0-or-later",
+  "require": {
+    "elasticsearch/elasticsearch": "^8.0"
+  }
+}

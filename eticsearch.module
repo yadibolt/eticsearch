@@ -1,0 +1,28 @@
+<?php
+
+use Drupal\Core\Form\FormStateInterface;
+use Drupal\node\NodeTypeInterface;
+
+function eticsearch_form_node_type_form_alter(array &$form, FormStateInterface $form_state): void {
+  /** @var NodeTypeInterface $node_type */
+  $node_type = $form_state->getFormObject()->getEntity();
+
+  $form['eticsearch'] = [
+    '#type' => 'details',
+    '#title' => t('Eticsearch Settings'),
+    '#group' => 'additional_settings',
+    '#weight' => 10,
+  ];
+
+  $form['eticsearch']['eticsearch_index'] = [
+    '#type' => 'checkbox',
+    '#title' => t('Enable this content type to be indexed by Eticsearch'),
+    '#default_value' => $node_type->getThirdPartySetting('eticsearch', 'index', FALSE),
+  ];
+
+  $form['#entity_builders'][] = 'eticsearch_form_node_type_form_builder';
+}
+
+function eticsearch_form_node_type_form_builder(string $entity_type, NodeTypeInterface $node_type, array &$form, FormStateInterface $form_state): void {
+  $node_type->setThirdPartySetting('eticsearch', 'index', (bool) $form_state->getValue('eticsearch_index'));
+}
