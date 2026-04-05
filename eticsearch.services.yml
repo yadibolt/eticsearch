@@ -1,5 +1,30 @@
 services:
-  eticsearch.elasticsearch_provider:
-    class: Drupal\eticsearch\Provider\ElasticsearchProvider
+  eticsearch.configuration.factory:
+    class: Drupal\eticsearch\Factory\ConfigurationFactory
     arguments:
       - '@config.factory'
+
+  eticsearch.elasticsearch.provider:
+    class: Drupal\eticsearch\Provider\ElasticSearchProvider
+    arguments:
+      - '@eticsearch.configuration.factory'
+
+  eticsearch.entity_field.manager:
+    class: Drupal\eticsearch\Manager\EntityFieldManager
+    arguments:
+      - '@eticsearch.configuration.factory'
+
+  eticsearch.analyzer.factory:
+    class: Drupal\eticsearch\Factory\AnalyzerFactory
+    arguments:
+       - '@eticsearch.configuration.factory'
+
+  eticsearch.filter.factory:
+     class: Drupal\eticsearch\Factory\FilterFactory
+     arguments:
+       - '@eticsearch.configuration.factory'
+
+  eticsearch.index.factory:
+    class: Drupal\eticsearch\Factory\IndexFactory
+    arguments:
+      - '@eticsearch.elasticsearch.provider'

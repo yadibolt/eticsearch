@@ -1,31 +1,7 @@
-eticsearch.settings:
-  path: '/admin/config/search/eticsearch'
-  defaults:
-    _form: '\Drupal\eticsearch\Form\GeneralSettingsForm'
-    _title: 'Eticsearch Settings'
-  requirements:
-    _permission: 'administer site configuration'
-
-eticsearch.settings.elasticsearch:
-  path: '/admin/config/search/eticsearch/elasticsearch'
-  defaults:
-    _form: '\Drupal\eticsearch\Form\ElasticsearchSettingsForm'
-    _title: 'Eticsearch Elasticsearch Settings'
-  requirements:
-    _permission: 'administer site configuration'
-
-eticsearch.settings.elasticsearch.index:
-  path: '/admin/config/search/eticsearch/elasticsearch_index'
-  defaults:
-    _form: '\Drupal\eticsearch\Form\ElasticsearchIndexSettingsForm'
-    _title: 'Eticsearch Index Settings'
-  requirements:
-    _permission: 'administer site configuration'
-
 eticsearch.test_connection:
-  path: '/admin/config/search/eticsearch/test-connection'
+  path: '/admin/config/search/eticsearch/test'
   defaults:
-    _controller: '\Drupal\eticsearch\Controller\TestController::testConnection'
-    _title: 'Test Elasticsearch connection'
+    _controller: '\Drupal\eticsearch\Controller\TestController::test'
+    _title: 'Test'
   requirements:
     _permission: 'administer site configuration'
