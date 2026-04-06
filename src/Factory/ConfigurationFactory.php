@@ -55,18 +55,20 @@ class ConfigurationFactory
   {
     return [
       /* ElasticSearch specific */
-      'elasticsearch.host' => 'string',
-      'elasticsearch.port' => 'integer',
-      'elasticsearch.auth_method' => 'string',
-      'elasticsearch.username' => 'string',
-      'elasticsearch.password' => 'string',
-      'elasticsearch.api_key_id' => 'string',
-      'elasticsearch.api_key_secret' => 'string',
-      'elasticsearch.verify_ssl' => 'boolean',
-      'elasticsearch.ca_cert' => 'string',
+      'elasticsearch:host' => 'string',
+      'elasticsearch:port' => 'integer',
+      'elasticsearch:auth_method' => 'string',
+      'elasticsearch:username' => 'string',
+      'elasticsearch:password' => 'string',
+      'elasticsearch:api_key_id' => 'string',
+      'elasticsearch:api_key_secret' => 'string',
+      'elasticsearch:verify_ssl' => 'boolean',
+      'elasticsearch:ca_cert' => 'string',
       /* Eticsearch specific */
-      'eticsearch.analyzers' => 'array',
-      'eticsearch.filters' => 'array',
+      'eticsearch:indices' => 'array',
+      'eticsearch:analyzers' => 'array',
+      'eticsearch:filters' => 'array',
+      'eticsearch:fields' => 'array',
     ];
   }
 

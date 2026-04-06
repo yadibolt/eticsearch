@@ -14,17 +14,14 @@ services:
     arguments:
       - '@eticsearch.configuration.factory'
 
-  eticsearch.analyzer.factory:
-    class: Drupal\eticsearch\Factory\AnalyzerFactory
-    arguments:
-       - '@eticsearch.configuration.factory'
-
-  eticsearch.filter.factory:
-     class: Drupal\eticsearch\Factory\FilterFactory
-     arguments:
-       - '@eticsearch.configuration.factory'
-
   eticsearch.index.factory:
     class: Drupal\eticsearch\Factory\IndexFactory
     arguments:
       - '@eticsearch.elasticsearch.provider'
+      - '@eticsearch.configuration.factory'
+
+  eticsearch.analyzer.factory:
+    class: Drupal\eticsearch\Analyzer
+
+  eticsearch.filter.factory:
+     class: Drupal\eticsearch\Filter
