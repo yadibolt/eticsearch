@@ -77,9 +77,93 @@ class Similarity
     return $instance;
   }
 
+  public static function load(string $indexName, string $similarityName): ?self
+  {
+    // todo: return instantiated index factory from the config or null if does not exists
+  }
+
+  public static function delete(string $indexName, string $similarityName): bool
+  {
+    // todo: implement config delete
+    // todo: implement index deletion in ES
+  }
+
+  /**
+   * Formats the similarity configuration as an array for use in ES config.
+   * This method will only include properties relevant to the similarity type.
+   * @return array
+   */
+  public function toArray(): array
+  {
+    $props = [
+      'type' => $this->type,
+    ];
+
+    switch ($this->type) {
+      case 'BM25':
+        $props['k1'] = $this->k1;
+        $props['b'] = $this->b;
+        $props['discount_overlaps'] = $this->discountOverlaps;
+        break;
+      case 'DFR':
+        $props['basic_model'] = $this->basicModel;
+        $props['after_effect'] = $this->afterEffect;
+        $props['normalization'] = $this->normalization;
+
+        if ($this->normalization === 'h1') $props['normalization.h1.c'] = $this->normalizationH1C;
+        if ($this->normalization === 'h2') $props['normalization.h2.c'] = $this->normalizationH2C;
+        if ($this->normalization === 'h3') $props['normalization.h3.c'] = $this->normalizationH3C;
+        if ($this->normalization === 'z') $props['normalization.z.z'] = $this->normalizationZZ;
+        break;
+      case 'DFI':
+        $props['independence_measure'] = $this->independenceMeasure;
+        break;
+      case 'IB':
+        $props['distribution'] = $this->distribution;
+        $props['lambda'] = $this->ibLambda;
+        $props['normalization'] = $this->normalization;
+
+        if ($this->normalization === 'h1') $props['normalization.h1.c'] = $this->normalizationH1C;
+        if ($this->normalization === 'h2') $props['normalization.h2.c'] = $this->normalizationH2C;
+        if ($this->normalization === 'h3') $props['normalization.h3.c'] = $this->normalizationH3C;
+        if ($this->normalization === 'z') $props['normalization.z.z'] = $this->normalizationZZ;
+        break;
+
+      case 'LMDirichlet':
+        $props['mu'] = $this->mu;
+        break;
+      case 'LMJelinekMercer':
+        $props['lambda'] = $this->lambda;
+        break;
+      case 'scripted':
+        $props['script'] = $this->script;
+
+        if ($this->weightScript !== NULL) $props['weight_script'] = $this->weightScript;
+        if (!empty($this->params)) $props['params'] = $this->params;
+        break;
+      default:
+        throw new InvalidArgumentException(
+          'toArray only accepts type as one of: ' . implode(', ', self::CONFIGURABLE_SIMILARITY_TYPES)
+        );
+    }
+
+    return $props;
+  }
+
+  public function save()
+  {
+    // todo: implement config save
+    // todo: implement index creation in ES
+  }
+
   private function _setName(string $name): void
   {
     $this->name = $name;
+  }
+
+  public function getName(): string
+  {
+    return $this->name;
   }
 
   private function _setType(string $type): void
@@ -217,89 +301,5 @@ class Similarity
   private function _setParams(array $params): void
   {
     $this->params = $params;
-  }
-
-  public static function load(string $indexName): ?self
-  {
-    // todo: return instantiated index factory from the config or null if does not exists
-  }
-
-  public static function delete(string $indexName): bool
-  {
-    // todo: implement config delete
-    // todo: implement index deletion in ES
-  }
-
-  /**
-   * Formats the similarity configuration as an array for use in ES config.
-   * This method will only include properties relevant to the similarity type.
-   * @return array
-   */
-  public function toArray(): array
-  {
-    $props = [
-      'type' => $this->type,
-    ];
-
-    switch ($this->type) {
-      case 'BM25':
-        $props['k1'] = $this->k1;
-        $props['b'] = $this->b;
-        $props['discount_overlaps'] = $this->discountOverlaps;
-        break;
-      case 'DFR':
-        $props['basic_model'] = $this->basicModel;
-        $props['after_effect'] = $this->afterEffect;
-        $props['normalization'] = $this->normalization;
-
-        if ($this->normalization === 'h1') $props['normalization.h1.c'] = $this->normalizationH1C;
-        if ($this->normalization === 'h2') $props['normalization.h2.c'] = $this->normalizationH2C;
-        if ($this->normalization === 'h3') $props['normalization.h3.c'] = $this->normalizationH3C;
-        if ($this->normalization === 'z') $props['normalization.z.z'] = $this->normalizationZZ;
-        break;
-      case 'DFI':
-        $props['independence_measure'] = $this->independenceMeasure;
-        break;
-      case 'IB':
-        $props['distribution'] = $this->distribution;
-        $props['lambda'] = $this->ibLambda;
-        $props['normalization'] = $this->normalization;
-
-        if ($this->normalization === 'h1') $props['normalization.h1.c'] = $this->normalizationH1C;
-        if ($this->normalization === 'h2') $props['normalization.h2.c'] = $this->normalizationH2C;
-        if ($this->normalization === 'h3') $props['normalization.h3.c'] = $this->normalizationH3C;
-        if ($this->normalization === 'z') $props['normalization.z.z'] = $this->normalizationZZ;
-        break;
-
-      case 'LMDirichlet':
-        $props['mu'] = $this->mu;
-        break;
-      case 'LMJelinekMercer':
-        $props['lambda'] = $this->lambda;
-        break;
-      case 'scripted':
-        $props['script'] = $this->script;
-
-        if ($this->weightScript !== NULL) $props['weight_script'] = $this->weightScript;
-        if (!empty($this->params)) $props['params'] = $this->params;
-        break;
-      default:
-        throw new InvalidArgumentException(
-          'toArray only accepts type as one of: ' . implode(', ', self::CONFIGURABLE_SIMILARITY_TYPES)
-        );
-    }
-
-    return $props;
-  }
-
-  public function save()
-  {
-    // todo: implement config save
-    // todo: implement index creation in ES
-  }
-
-  public function getName(): string
-  {
-    return $this->name;
   }
 }

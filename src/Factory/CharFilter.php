@@ -91,12 +91,12 @@ class CharFilter
     $this->flags = $flags;
   }
 
-  public static function load(string $indexName): ?self
+  public static function load(string $indexName, string $charFilterName): ?self
   {
     // todo: return instantiated index factory from the config or null if does not exists
   }
 
-  public static function delete(string $indexName): bool
+  public static function delete(string $indexName, string $charFilterName): bool
   {
     // todo: implement config delete
     // todo: implement index deletion in ES

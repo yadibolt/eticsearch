@@ -61,9 +61,83 @@ class Tokenizer
     return $instance;
   }
 
+  public static function load(string $indexName, string $tokenizerName): ?self
+  {
+    // todo: return instantiated index factory from the config or null if does not exists
+  }
+
+  public static function delete(string $indexName, string $tokenizerName): bool
+  {
+    // todo: implement config delete
+    // todo: implement index deletion in ES
+  }
+
+  /**
+   * Formats the tokenizer configuration as an array for use in ES config.
+   * This method will only include properties relevant to the tokenizer type.
+   * @return array
+   */
+  public function toArray(): array
+  {
+    $props = [
+      'type' => $this->type,
+    ];
+
+    switch ($this->type) {
+      case 'standard':
+        $props['max_token_length'] = $this->maxTokenLength;
+        break;
+
+      case 'ngram':
+      case 'edge_ngram':
+        $props['min_gram'] = $this->minGram;
+        $props['max_gram'] = $this->maxGram;
+        $props['token_chars'] = $this->tokenChars;
+
+        if ($this->customTokenChars !== NULL) $props['custom_token_chars'] = $this->customTokenChars;
+        break;
+      case 'pattern':
+        $props['pattern'] = $this->pattern;
+        $props['group'] = $this->group;
+
+        if ($this->flags !== NULL) $props['flags'] = $this->flags;
+        break;
+      case 'simple_pattern':
+      case 'simple_pattern_split':
+        $props['pattern'] = $this->pattern;
+        break;
+      case 'char_group':
+        $props['tokenize_on_chars'] = $this->tokenizeOnChars;
+        break;
+      case 'path_hierarchy':
+        $props['delimiter'] = $this->delimiter;
+        $props['replacement'] = $this->replacement;
+        $props['skip'] = $this->skip;
+        $props['reverse'] = $this->reverse;
+        break;
+      default:
+        throw new InvalidArgumentException(
+          'toArray only accepts type as one of: ' . implode(', ', self::CONFIGURABLE_TOKENIZER_TYPES)
+        );
+    }
+
+    return $props;
+  }
+
+  public function save()
+  {
+    // todo: implement config save
+    // todo: implement index creation in ES
+  }
+
   private function _setName(string $name): void
   {
     $this->name = $name;
+  }
+
+  public function getName(): string
+  {
+    return $this->name;
   }
 
   private function _setType(string $type): void
@@ -140,79 +214,5 @@ class Tokenizer
   private function _setReverse(bool $reverse): void
   {
     $this->reverse = $reverse;
-  }
-
-  public static function load(string $indexName): ?self
-  {
-    // todo: return instantiated index factory from the config or null if does not exists
-  }
-
-  public static function delete(string $indexName): bool
-  {
-    // todo: implement config delete
-    // todo: implement index deletion in ES
-  }
-
-  /**
-   * Formats the tokenizer configuration as an array for use in ES config.
-   * This method will only include properties relevant to the tokenizer type.
-   * @return array
-   */
-  public function toArray(): array
-  {
-    $props = [
-      'type' => $this->type,
-    ];
-
-    switch ($this->type) {
-      case 'standard':
-        $props['max_token_length'] = $this->maxTokenLength;
-        break;
-
-      case 'ngram':
-      case 'edge_ngram':
-        $props['min_gram'] = $this->minGram;
-        $props['max_gram'] = $this->maxGram;
-        $props['token_chars'] = $this->tokenChars;
-
-        if ($this->customTokenChars !== NULL) $props['custom_token_chars'] = $this->customTokenChars;
-        break;
-      case 'pattern':
-        $props['pattern'] = $this->pattern;
-        $props['group'] = $this->group;
-
-        if ($this->flags !== NULL) $props['flags'] = $this->flags;
-        break;
-      case 'simple_pattern':
-      case 'simple_pattern_split':
-        $props['pattern'] = $this->pattern;
-        break;
-      case 'char_group':
-        $props['tokenize_on_chars'] = $this->tokenizeOnChars;
-        break;
-      case 'path_hierarchy':
-        $props['delimiter'] = $this->delimiter;
-        $props['replacement'] = $this->replacement;
-        $props['skip'] = $this->skip;
-        $props['reverse'] = $this->reverse;
-        break;
-      default:
-        throw new InvalidArgumentException(
-          'toArray only accepts type as one of: ' . implode(', ', self::CONFIGURABLE_TOKENIZER_TYPES)
-        );
-    }
-
-    return $props;
-  }
-
-  public function save()
-  {
-    // todo: implement config save
-    // todo: implement index creation in ES
-  }
-
-  public function getName(): string
-  {
-    return $this->name;
   }
 }

@@ -22,27 +22,12 @@ class Normalizer
     return $instance;
   }
 
-  private function _setName(string $name): void
-  {
-    $this->name = $name;
-  }
-
-  private function _setCharFilters(array $charFilters): void
-  {
-    $this->charFilters = $charFilters;
-  }
-
-  private function _setFilters(array $filters): void
-  {
-    $this->filters = $filters;
-  }
-
-  public static function load(string $indexName): ?self
+  public static function load(string $indexName, string $normalizerName): ?self
   {
     // todo: return instantiated index factory from the config or null if does not exists
   }
 
-  public static function delete(string $indexName): bool
+  public static function delete(string $indexName, string $normalizerName): bool
   {
     // todo: implement config delete
     // todo: implement index deletion in ES
@@ -64,14 +49,29 @@ class Normalizer
     return $props;
   }
 
+  public function save()
+  {
+    // todo: implement config save
+    // todo: implement index creation in ES
+  }
+
+  private function _setName(string $name): void
+  {
+    $this->name = $name;
+  }
+
   public function getName(): string
   {
     return $this->name;
   }
 
-  public function save()
+  private function _setCharFilters(array $charFilters): void
   {
-    // todo: implement config save
-    // todo: implement index creation in ES
+    $this->charFilters = $charFilters;
+  }
+
+  private function _setFilters(array $filters): void
+  {
+    $this->filters = $filters;
   }
 }

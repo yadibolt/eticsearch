@@ -157,9 +157,175 @@ class Filter
         return $instance;
     }
 
+    public static function load(string $indexName, string $filterName): ?self
+    {
+        // todo: return instantiated index factory from the config or null if does not exists
+    }
+
+    public static function delete(string $indexName, string $filterName): bool
+    {
+        // todo: implement config delete
+        // todo: implement index deletion in ES
+    }
+
+    /**
+     * Formats the token filter configuration as an array for use in ES config.
+     * This method will only include properties relevant to the filter type.
+     * @return array
+     */
+    public function toArray(): array
+    {
+        $props = [
+            'type' => $this->type,
+        ];
+
+        switch ($this->type) {
+            case 'stop':
+                $props['stopwords'] = $this->stopwords;
+                $props['ignore_case'] = $this->ignoreCase;
+                $props['remove_trailing'] = $this->removeTrailing;
+
+                if ($this->stopwordsPath !== NULL) $props['stopwords_path'] = $this->stopwordsPath;
+                break;
+            case 'synonym':
+            case 'synonym_graph':
+                $props['format'] = $this->format;
+                $props['lenient'] = $this->lenient;
+                $props['expand'] = $this->expand;
+
+                if (!empty($this->synonyms)) $props['synonyms'] = $this->synonyms;
+                if ($this->synonymsPath !== NULL) $props['synonyms_path'] = $this->synonymsPath;
+                if ($this->analyzer !== NULL) $props['analyzer'] = $this->analyzer;
+                break;
+            case 'stemmer':
+            case 'snowball':
+                $props['language'] = $this->language;
+                break;
+            case 'ngram':
+                $props['min_gram'] = $this->minGram;
+                $props['max_gram'] = $this->maxGram;
+                $props['preserve_original'] = $this->preserveOriginal;
+                break;
+            case 'edge_ngram':
+                $props['min_gram'] = $this->minGram;
+                $props['max_gram'] = $this->maxGram;
+                $props['side'] = $this->side;
+                $props['preserve_original'] = $this->preserveOriginal;
+                break;
+            case 'shingle':
+                $props['max_shingle_size'] = $this->maxShingleSize;
+                $props['min_shingle_size'] = $this->minShingleSize;
+                $props['output_unigrams'] = $this->outputUnigrams;
+                $props['output_unigrams_if_no_shingles'] = $this->outputUnigramsIfNoShingles;
+                $props['token_separator'] = $this->tokenSeparator;
+                $props['filler_token'] = $this->fillerToken;
+                break;
+            case 'word_delimiter':
+                $props['generate_word_parts'] = $this->generateWordParts;
+                $props['generate_number_parts'] = $this->generateNumberParts;
+                $props['catenate_words'] = $this->catenateWords;
+                $props['catenate_numbers'] = $this->catenateNumbers;
+                $props['catenate_all'] = $this->catenateAll;
+                $props['split_on_case_change'] = $this->splitOnCaseChange;
+                $props['preserve_original'] = $this->preserveOriginal;
+                $props['split_on_numerics'] = $this->splitOnNumerics;
+                $props['stem_english_possessive'] = $this->stemEnglishPossessive;
+
+                if (!empty($this->protectedWords)) $props['protected_words'] = $this->protectedWords;
+                if ($this->protectedWordsPath !== NULL) $props['protected_words_path'] = $this->protectedWordsPath;
+                if (!empty($this->typeTable)) $props['type_table'] = $this->typeTable;
+                if ($this->typeTablePath !== NULL) $props['type_table_path'] = $this->typeTablePath;
+                break;
+            case 'word_delimiter_graph':
+                $props['generate_word_parts'] = $this->generateWordParts;
+                $props['generate_number_parts'] = $this->generateNumberParts;
+                $props['catenate_words'] = $this->catenateWords;
+                $props['catenate_numbers'] = $this->catenateNumbers;
+                $props['catenate_all'] = $this->catenateAll;
+                $props['split_on_case_change'] = $this->splitOnCaseChange;
+                $props['preserve_original'] = $this->preserveOriginal;
+                $props['split_on_numerics'] = $this->splitOnNumerics;
+                $props['stem_english_possessive'] = $this->stemEnglishPossessive;
+                $props['adjust_offsets'] = $this->adjustOffsets;
+
+                if (!empty($this->protectedWords)) $props['protected_words'] = $this->protectedWords;
+                if ($this->protectedWordsPath !== NULL) $props['protected_words_path'] = $this->protectedWordsPath;
+                if (!empty($this->typeTable)) $props['type_table'] = $this->typeTable;
+                if ($this->typeTablePath !== NULL) $props['type_table_path'] = $this->typeTablePath;
+                break;
+            case 'length':
+                $props['min'] = $this->min;
+                $props['max'] = $this->max;
+                break;
+            case 'truncate':
+                $props['length'] = $this->truncateLength;
+                break;
+            case 'limit':
+                $props['max_token_count'] = $this->maxTokenCount;
+                $props['consume_all_tokens'] = $this->consumeAllTokens;
+                break;
+            case 'pattern_replace':
+                $props['replacement'] = $this->replacement;
+                $props['all'] = $this->all;
+
+                if ($this->pattern !== NULL) $props['pattern'] = $this->pattern;
+                if ($this->flags !== NULL) $props['flags'] = $this->flags;
+                break;
+            case 'pattern_capture':
+                $props['patterns'] = $this->patterns;
+                $props['preserve_original'] = $this->preserveOriginal;
+                break;
+            case 'keyword_marker':
+                $props['ignore_case'] = $this->ignoreCase;
+
+                if (!empty($this->keywords)) $props['keywords'] = $this->keywords;
+                if ($this->keywordsPath !== NULL) $props['keywords_path'] = $this->keywordsPath;
+                if ($this->keywordsPattern !== NULL) $props['keywords_pattern'] = $this->keywordsPattern;
+                break;
+            case 'elision':
+                $props['articles_case'] = $this->articlesCase;
+
+                if (!empty($this->articles)) $props['articles'] = $this->articles;
+                if ($this->articlesPath !== NULL) $props['articles_path'] = $this->articlesPath;
+                break;
+            case 'multiplexer':
+                $props['filters'] = $this->multiplexerFilters;
+                $props['preserve_original'] = $this->preserveOriginal;
+                break;
+            case 'condition':
+                $props['filter'] = $this->conditionFilter;
+
+                if ($this->script !== NULL) $props['script'] = $this->script;
+                break;
+            case 'unique':
+                $props['only_on_same_position'] = $this->onlyOnSamePosition;
+                break;
+            case 'predicate_token_filter':
+                if ($this->script !== NULL) $props['script'] = $this->script;
+                break;
+            default:
+                throw new InvalidArgumentException(
+                    'toArray only accepts type as one of: ' . implode(', ', self::CONFIGURABLE_TOKEN_FILTER_TYPES)
+                );
+        }
+
+        return $props;
+    }
+
+    public function save()
+    {
+        // todo: implement config save
+        // todo: implement index creation in ES
+    }
+
     private function _setName(string $name): void
     {
         $this->name = $name;
+    }
+
+    public function getName(): string
+    {
+        return $this->name;
     }
 
     private function _setType(string $type): void
@@ -459,171 +625,5 @@ class Filter
     private function _setOnlyOnSamePosition(bool $onlyOnSamePosition): void
     {
         $this->onlyOnSamePosition = $onlyOnSamePosition;
-    }
-
-    public static function load(string $indexName): ?self
-    {
-        // todo: return instantiated index factory from the config or null if does not exists
-    }
-
-    public static function delete(string $indexName): bool
-    {
-        // todo: implement config delete
-        // todo: implement index deletion in ES
-    }
-
-    /**
-     * Formats the token filter configuration as an array for use in ES config.
-     * This method will only include properties relevant to the filter type.
-     * @return array
-     */
-    public function toArray(): array
-    {
-        $props = [
-            'type' => $this->type,
-        ];
-
-        switch ($this->type) {
-            case 'stop':
-                $props['stopwords'] = $this->stopwords;
-                $props['ignore_case'] = $this->ignoreCase;
-                $props['remove_trailing'] = $this->removeTrailing;
-
-                if ($this->stopwordsPath !== NULL) $props['stopwords_path'] = $this->stopwordsPath;
-                break;
-            case 'synonym':
-            case 'synonym_graph':
-                $props['format'] = $this->format;
-                $props['lenient'] = $this->lenient;
-                $props['expand'] = $this->expand;
-
-                if (!empty($this->synonyms)) $props['synonyms'] = $this->synonyms;
-                if ($this->synonymsPath !== NULL) $props['synonyms_path'] = $this->synonymsPath;
-                if ($this->analyzer !== NULL) $props['analyzer'] = $this->analyzer;
-                break;
-            case 'stemmer':
-            case 'snowball':
-                $props['language'] = $this->language;
-                break;
-            case 'ngram':
-                $props['min_gram'] = $this->minGram;
-                $props['max_gram'] = $this->maxGram;
-                $props['preserve_original'] = $this->preserveOriginal;
-                break;
-            case 'edge_ngram':
-                $props['min_gram'] = $this->minGram;
-                $props['max_gram'] = $this->maxGram;
-                $props['side'] = $this->side;
-                $props['preserve_original'] = $this->preserveOriginal;
-                break;
-            case 'shingle':
-                $props['max_shingle_size'] = $this->maxShingleSize;
-                $props['min_shingle_size'] = $this->minShingleSize;
-                $props['output_unigrams'] = $this->outputUnigrams;
-                $props['output_unigrams_if_no_shingles'] = $this->outputUnigramsIfNoShingles;
-                $props['token_separator'] = $this->tokenSeparator;
-                $props['filler_token'] = $this->fillerToken;
-                break;
-            case 'word_delimiter':
-                $props['generate_word_parts'] = $this->generateWordParts;
-                $props['generate_number_parts'] = $this->generateNumberParts;
-                $props['catenate_words'] = $this->catenateWords;
-                $props['catenate_numbers'] = $this->catenateNumbers;
-                $props['catenate_all'] = $this->catenateAll;
-                $props['split_on_case_change'] = $this->splitOnCaseChange;
-                $props['preserve_original'] = $this->preserveOriginal;
-                $props['split_on_numerics'] = $this->splitOnNumerics;
-                $props['stem_english_possessive'] = $this->stemEnglishPossessive;
-
-                if (!empty($this->protectedWords)) $props['protected_words'] = $this->protectedWords;
-                if ($this->protectedWordsPath !== NULL) $props['protected_words_path'] = $this->protectedWordsPath;
-                if (!empty($this->typeTable)) $props['type_table'] = $this->typeTable;
-                if ($this->typeTablePath !== NULL) $props['type_table_path'] = $this->typeTablePath;
-                break;
-            case 'word_delimiter_graph':
-                $props['generate_word_parts'] = $this->generateWordParts;
-                $props['generate_number_parts'] = $this->generateNumberParts;
-                $props['catenate_words'] = $this->catenateWords;
-                $props['catenate_numbers'] = $this->catenateNumbers;
-                $props['catenate_all'] = $this->catenateAll;
-                $props['split_on_case_change'] = $this->splitOnCaseChange;
-                $props['preserve_original'] = $this->preserveOriginal;
-                $props['split_on_numerics'] = $this->splitOnNumerics;
-                $props['stem_english_possessive'] = $this->stemEnglishPossessive;
-                $props['adjust_offsets'] = $this->adjustOffsets;
-
-                if (!empty($this->protectedWords)) $props['protected_words'] = $this->protectedWords;
-                if ($this->protectedWordsPath !== NULL) $props['protected_words_path'] = $this->protectedWordsPath;
-                if (!empty($this->typeTable)) $props['type_table'] = $this->typeTable;
-                if ($this->typeTablePath !== NULL) $props['type_table_path'] = $this->typeTablePath;
-                break;
-            case 'length':
-                $props['min'] = $this->min;
-                $props['max'] = $this->max;
-                break;
-            case 'truncate':
-                $props['length'] = $this->truncateLength;
-                break;
-            case 'limit':
-                $props['max_token_count'] = $this->maxTokenCount;
-                $props['consume_all_tokens'] = $this->consumeAllTokens;
-                break;
-            case 'pattern_replace':
-                $props['replacement'] = $this->replacement;
-                $props['all'] = $this->all;
-
-                if ($this->pattern !== NULL) $props['pattern'] = $this->pattern;
-                if ($this->flags !== NULL) $props['flags'] = $this->flags;
-                break;
-            case 'pattern_capture':
-                $props['patterns'] = $this->patterns;
-                $props['preserve_original'] = $this->preserveOriginal;
-                break;
-            case 'keyword_marker':
-                $props['ignore_case'] = $this->ignoreCase;
-
-                if (!empty($this->keywords)) $props['keywords'] = $this->keywords;
-                if ($this->keywordsPath !== NULL) $props['keywords_path'] = $this->keywordsPath;
-                if ($this->keywordsPattern !== NULL) $props['keywords_pattern'] = $this->keywordsPattern;
-                break;
-            case 'elision':
-                $props['articles_case'] = $this->articlesCase;
-
-                if (!empty($this->articles)) $props['articles'] = $this->articles;
-                if ($this->articlesPath !== NULL) $props['articles_path'] = $this->articlesPath;
-                break;
-            case 'multiplexer':
-                $props['filters'] = $this->multiplexerFilters;
-                $props['preserve_original'] = $this->preserveOriginal;
-                break;
-            case 'condition':
-                $props['filter'] = $this->conditionFilter;
-
-                if ($this->script !== NULL) $props['script'] = $this->script;
-                break;
-            case 'unique':
-                $props['only_on_same_position'] = $this->onlyOnSamePosition;
-                break;
-            case 'predicate_token_filter':
-                if ($this->script !== NULL) $props['script'] = $this->script;
-                break;
-            default:
-                throw new InvalidArgumentException(
-                    'toArray only accepts type as one of: ' . implode(', ', self::CONFIGURABLE_TOKEN_FILTER_TYPES)
-                );
-        }
-
-        return $props;
-    }
-
-    public function save()
-    {
-        // todo: implement config save
-        // todo: implement index creation in ES
-    }
-
-    public function getName(): string
-    {
-        return $this->name;
     }
 }
