@@ -167,6 +167,111 @@ class EIndexFactory
   }
 
   /**
+   * Updates dynamic settings of the index.
+   * @param array<string, mixed> $options - Additional index settings options (@example number_of_shards, codec, store_type, number_of_replicas, auto_expand_replicas, refresh_interval, max_result_window, max_docvalue_fields_search, max_script_fields, max_ngram_diff, max_terms_count, max_regex_length, gc_deletes, priority, mapping_total_fields_limit, mapping_depth_limit, mapping_nested_fields_limit, mapping_nested_objects_limit, mapping_field_name_length_limit).
+   * @return $this
+   */
+  public function updateDynamicSettings(array $options): self
+  {
+    if (isset($options['number_of_replicas'])) {
+      $this->_setNumberOfReplicas($options['number_of_replicas']);
+    }
+
+    if (isset($options['auto_expand_replicas'])) {
+      $this->_setAutoExpandReplicas($options['auto_expand_replicas']);
+    }
+
+    if (isset($options['refresh_interval'])) {
+      $this->_setRefreshInterval($options['refresh_interval']);
+    }
+
+    if (isset($options['max_result_window'])) {
+      $this->_setMaxResultWindow($options['max_result_window']);
+    }
+
+    if (isset($options['max_docvalue_fields_search'])) {
+      $this->_setMaxDocvalueFieldsSearch($options['max_docvalue_fields_search']);
+    }
+
+    if (isset($options['max_script_fields'])) {
+      $this->_setMaxScriptFields($options['max_script_fields']);
+    }
+
+    if (isset($options['max_ngram_diff'])) {
+      $this->_setMaxNgramDiff($options['max_ngram_diff']);
+    }
+
+    if (isset($options['max_terms_count'])) {
+      $this->_setMaxTermsCount($options['max_terms_count']);
+    }
+
+    if (isset($options['max_regex_length'])) {
+      $this->_setMaxRegexLength($options['max_regex_length']);
+    }
+
+    if (isset($options['gc_deletes'])) {
+      $this->_setGcDeletes($options['gc_deletes']);
+    }
+
+    if (isset($options['priority'])) {
+      $this->_setPriority($options['priority']);
+    }
+
+    if (isset($options['mapping_total_fields_limit'])) {
+      $this->_setMappingTotalFieldsLimit($options['mapping_total_fields_limit']);
+    }
+
+    if (isset($options['mapping_depth_limit'])) {
+      $this->_setMappingDepthLimit($options['mapping_depth_limit']);
+    }
+
+    if (isset($options['mapping_nested_fields_limit'])) {
+      $this->_setMappingNestedFieldsLimit($options['mapping_nested_fields_limit']);
+    }
+
+    if (isset($options['mapping_nested_objects_limit'])) {
+      $this->_setMappingNestedObjectsLimit($options['mapping_nested_objects_limit']);
+    }
+
+    if (isset($options['mapping_field_name_length_limit'])) {
+      $this->_setMappingFieldNameLengthLimit($options['mapping_field_name_length_limit']);
+    }
+
+    return $this;
+  }
+
+  /**
+   * Loads an existing index factory instance by index name.
+   * @param string $indexName
+   * @return self|null
+   */
+  public static function load(string $indexName): ?self
+  {
+    // todo: return instantiated index factory from the config or null if does not exists
+  }
+
+  /**
+   * Deletes the index configuration and removes the index from Elasticsearch.
+   * @param string $indexName
+   * @return bool
+   */
+  public static function delete(string $indexName): bool
+  {
+    // todo: implement config delete
+    // todo: implement index deletion in ES
+  }
+
+  /**
+   * Saves the index configuration and creates the index in Elasticsearch.
+   * @return void
+   */
+  public function save()
+  {
+    // todo: implement config save
+    // todo: implement index creation in ES
+  }
+
+  /**
    * [STATIC]
    * Sets the index name for the index factory.
    * @param string $indexName
@@ -563,110 +668,5 @@ class EIndexFactory
     }
 
     $this->mappingFieldNameLengthLimit = $mappingFieldNameLengthLimit;
-  }
-
-  /**
-   * Loads an existing index factory instance by index name.
-   * @param string $indexName
-   * @return self|null
-   */
-  public static function load(string $indexName): ?self
-  {
-    // todo: return instantiated index factory from the config or null if does not exists
-  }
-
-  /**
-   * Deletes the index configuration and removes the index from Elasticsearch.
-   * @param string $indexName
-   * @return bool
-   */
-  public static function delete(string $indexName): bool
-  {
-    // todo: implement config delete
-    // todo: implement index deletion in ES
-  }
-
-  /**
-   * Updates dynamic settings of the index.
-   * @param array<string, mixed> $options - Additional index settings options (@example number_of_shards, codec, store_type, number_of_replicas, auto_expand_replicas, refresh_interval, max_result_window, max_docvalue_fields_search, max_script_fields, max_ngram_diff, max_terms_count, max_regex_length, gc_deletes, priority, mapping_total_fields_limit, mapping_depth_limit, mapping_nested_fields_limit, mapping_nested_objects_limit, mapping_field_name_length_limit).
-   * @return $this
-   */
-  public function updateDynamicSettings(array $options): self
-  {
-    if (isset($options['number_of_replicas'])) {
-      $this->_setNumberOfReplicas($options['number_of_replicas']);
-    }
-
-    if (isset($options['auto_expand_replicas'])) {
-      $this->_setAutoExpandReplicas($options['auto_expand_replicas']);
-    }
-
-    if (isset($options['refresh_interval'])) {
-      $this->_setRefreshInterval($options['refresh_interval']);
-    }
-
-    if (isset($options['max_result_window'])) {
-      $this->_setMaxResultWindow($options['max_result_window']);
-    }
-
-    if (isset($options['max_docvalue_fields_search'])) {
-      $this->_setMaxDocvalueFieldsSearch($options['max_docvalue_fields_search']);
-    }
-
-    if (isset($options['max_script_fields'])) {
-      $this->_setMaxScriptFields($options['max_script_fields']);
-    }
-
-    if (isset($options['max_ngram_diff'])) {
-      $this->_setMaxNgramDiff($options['max_ngram_diff']);
-    }
-
-    if (isset($options['max_terms_count'])) {
-      $this->_setMaxTermsCount($options['max_terms_count']);
-    }
-
-    if (isset($options['max_regex_length'])) {
-      $this->_setMaxRegexLength($options['max_regex_length']);
-    }
-
-    if (isset($options['gc_deletes'])) {
-      $this->_setGcDeletes($options['gc_deletes']);
-    }
-
-    if (isset($options['priority'])) {
-      $this->_setPriority($options['priority']);
-    }
-
-    if (isset($options['mapping_total_fields_limit'])) {
-      $this->_setMappingTotalFieldsLimit($options['mapping_total_fields_limit']);
-    }
-
-    if (isset($options['mapping_depth_limit'])) {
-      $this->_setMappingDepthLimit($options['mapping_depth_limit']);
-    }
-
-    if (isset($options['mapping_nested_fields_limit'])) {
-      $this->_setMappingNestedFieldsLimit($options['mapping_nested_fields_limit']);
-    }
-
-    if (isset($options['mapping_nested_objects_limit'])) {
-      $this->_setMappingNestedObjectsLimit($options['mapping_nested_objects_limit']);
-    }
-
-    if (isset($options['mapping_field_name_length_limit'])) {
-      $this->_setMappingFieldNameLengthLimit($options['mapping_field_name_length_limit']);
-    }
-
-    return $this;
-  }
-
-  /**
-   * Saves the index configuration and creates the index in Elasticsearch.
-   * @return void
-   */
-  public function save()
-  {
-    // todo: implement config save
-    // todo: implement index creation in ES
   }
 }
