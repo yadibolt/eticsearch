@@ -117,19 +117,16 @@ class CharFilter
       case 'html_strip':
         if (!empty($this->escapedTags)) $props['escaped_tags'] = $this->escapedTags;
         break;
-
       case 'mapping':
         if (!empty($this->mappings)) $props['mappings'] = $this->mappings;
         if ($this->mappingsPath !== NULL) $props['mappings_path'] = $this->mappingsPath;
         break;
-
       case 'pattern_replace':
         $props['replacement'] = $this->replacement;
 
         if ($this->pattern !== NULL) $props['pattern'] = $this->pattern;
         if ($this->flags !== NULL) $props['flags'] = $this->flags;
         break;
-
       default:
         throw new InvalidArgumentException(
           'toArray only accepts type as one of: ' . implode(', ', self::CONFIGURABLE_CHAR_FILTER_TYPES)

@@ -75,28 +75,28 @@ class EIndexFactory
       $instance->_setStoreType($options['store_type']);
     }
 
-    foreach ($similarities as $name => $config) {
-      $instance->_addSimilarity($name, $config);
+    foreach ($similarities as $config) {
+      $instance->_addSimilarity($config);
     }
 
-    foreach ($analyzers as $name => $config) {
-      $instance->_addAnalyzer($name, $config);
+    foreach ($analyzers as $config) {
+      $instance->_addAnalyzer($config);
     }
 
-    foreach ($tokenizers as $name => $config) {
-      $instance->_addTokenizer($name, $config);
+    foreach ($tokenizers as $config) {
+      $instance->_addTokenizer($config);
     }
 
-    foreach ($filters as $name => $config) {
-      $instance->_addFilter($name, $config);
+    foreach ($filters as $config) {
+      $instance->_addFilter($config);
     }
 
-    foreach ($charFilters as $name => $config) {
-      $instance->_addCharFilter($name, $config);
+    foreach ($charFilters as $config) {
+      $instance->_addCharFilter($config);
     }
 
-    foreach ($normalizers as $name => $config) {
-      $instance->_addNormalizer($name, $config);
+    foreach ($normalizers as $config) {
+      $instance->_addNormalizer($config);
     }
 
     if (isset($options['number_of_replicas'])) {
@@ -244,101 +244,95 @@ class EIndexFactory
    * [STATIC]
    * Registers a custom named similarity configuration assignable to fields in mappings.
    * Supported types: BM25, boolean, DFR, IB, LMDirichlet, LMJelinekMercer.
-   * @param string $name
    * @param Similarity $similarity
    * @return void
    * @example $this->_addSimilarity('my_bm25', ['type' => 'BM25', 'k1' => 1.5, 'b' => 0.75])
    */
-  private function _addSimilarity(string $name, Similarity $similarity): void
+  private function _addSimilarity(Similarity $similarity): void
   {
     $config = $similarity->toArray();
-    if (empty($name) || !isset($config['type']) || !in_array($config['type'],
+    if (!isset($config['type']) || !in_array($config['type'],
         ['BM25', 'boolean', 'DFR', 'IB', 'LMDirichlet', 'LMJelinekMercer'], TRUE)) {
       return;
     }
 
-    $this->similarity[$name] = $config;
+    $this->similarity[$similarity->getName()] = $config;
   }
 
   /**
    * [STATIC]
    * Registers a custom named analyzer combining a tokenizer with optional
    * char_filters and token filters.
-   * @param string $name
    * @param Analyzer $analyzer
    * @return void
    * @example ['type' => 'custom', 'tokenizer' => 'standard', 'filter' => ['lowercase']]
    */
-  private function _addAnalyzer(string $name, Analyzer $analyzer): void
+  private function _addAnalyzer(Analyzer $analyzer): void
   {
     $config = $analyzer->toArray();
-    if (empty($name) || !isset($config['type'])) return;
+    if (!isset($config['type'])) return;
 
-    $this->analysis['analyzer'][$name] = $config;
+    $this->analysis['analyzer'][$analyzer->getName()] = $config;
   }
 
   /**
    * [STATIC]
    * Registers a custom named tokenizer definition.
-   * @param string $name
    * @param Tokenizer $tokenizer
    * @return void
    * @example ['type' => 'ngram', 'min_gram' => 2, 'max_gram' => 3]
    */
-  private function _addTokenizer(string $name, Tokenizer $tokenizer): void
+  private function _addTokenizer(Tokenizer $tokenizer): void
   {
     $config = $tokenizer->toArray();
-    if (empty($name) || !isset($config['type'])) return;
+    if (!isset($config['type'])) return;
 
-    $this->analysis['tokenizer'][$name] = $config;
+    $this->analysis['tokenizer'][$tokenizer->getName()] = $config;
   }
 
   /**
    * [STATIC]
    * Registers a custom named token filter definition applied after tokenization.
-   * @param string $name
    * @param Filter $filter
    * @return void
    * @example ['type' => 'stop', 'stopwords' => ['the', 'a']]
    */
-  private function _addFilter(string $name, Filter $filter): void
+  private function _addFilter(Filter $filter): void
   {
     $config = $filter->toArray();
-    if (empty($name) || !isset($config['type'])) return;
+    if (!isset($config['type'])) return;
 
-    $this->analysis['filter'][$name] = $config;
+    $this->analysis['filter'][$filter->getName()] = $config;
   }
 
   /**
    * [STATIC]
    * Registers a custom named character filter definition applied before tokenization.
-   * @param string $name
    * @param CharFilter $charFilter
    * @return void
    * @example ['type' => 'html_strip'] or ['type' => 'mapping', 'mappings' => ['ph => f']]
    */
-  private function _addCharFilter(string $name, CharFilter $charFilter): void
+  private function _addCharFilter(CharFilter $charFilter): void
   {
     $config = $charFilter->toArray();
-    if (empty($name) || !isset($config['type'])) return;
+    if (!isset($config['type'])) return;
 
-    $this->analysis['char_filter'][$name] = $config;
+    $this->analysis['char_filter'][$charFilter->getName()] = $config;
   }
 
   /**
    * [STATIC]
    * Registers a custom named normalizer for keyword fields (no tokenizer — filters only).
-   * @param string $name
    * @param Normalizer $normalizer
    * @return void
    * @example ['type' => 'custom', 'filter' => ['lowercase', 'asciifolding']]
    */
-  private function _addNormalizer(string $name, Normalizer $normalizer): void
+  private function _addNormalizer(Normalizer $normalizer): void
   {
     $config = $normalizer->toArray();
-    if (empty($name) || !isset($config['type'])) return;
+    if (!isset($config['type'])) return;
 
-    $this->analysis['normalizer'][$name] = $config;
+    $this->analysis['normalizer'][$normalizer->getName()] = $config;
   }
 
   /**
