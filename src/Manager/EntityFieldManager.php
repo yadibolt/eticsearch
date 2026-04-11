@@ -4,6 +4,7 @@ namespace Drupal\eticsearch\Manager;
 
 use Drupal;
 use Drupal\Core\Config\Entity\ThirdPartySettingsInterface;
+use Drupal\Core\Entity\EntityInterface;
 use Drupal\Core\Field\FieldDefinitionInterface;
 use Drupal\eticsearch\Factory\ConfigurationFactory;
 use InvalidArgumentException;

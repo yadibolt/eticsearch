@@ -56,7 +56,6 @@ class TestController extends ControllerBase {
 
     $indexFactory->recreateIndex('test_index');
 
-    $indexFactory->deleteIndex('test_index');
     $configFactory = Drupal::service('eticsearch.configuration.factory');
 
     echo '<pre>';
