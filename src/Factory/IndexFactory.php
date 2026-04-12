@@ -3,286 +3,817 @@
 namespace Drupal\eticsearch\Factory;
 
 use Drupal;
+use Drupal\eticsearch\Analyzer;
+use Drupal\eticsearch\CharFilter;
+use Drupal\eticsearch\Filter;
 use Drupal\eticsearch\Logger;
-use Drupal\eticsearch\Provider\ElasticsearchProvider;
-use Elastic\Elasticsearch\Client;
+use Drupal\eticsearch\Normalizer;
+use Drupal\eticsearch\Provider\ESProvider;
+use Drupal\eticsearch\Similarity;
+use Drupal\eticsearch\Tokenizer;
 use Elastic\Elasticsearch\Exception\ClientResponseException;
 use Elastic\Elasticsearch\Exception\MissingParameterException;
 use Elastic\Elasticsearch\Exception\ServerResponseException;
-use InvalidArgumentException;
-use Throwable;
 
+/**
+ * Factory for the indices.
+ */
 class IndexFactory
 {
-  protected ?Client $client;
+  private string $indexName = 'eticsearch_index';
+  private int $numberOfShards = 1;
+  private string $codec = 'default';
+  private string $storeType = 'hybridfs';
+  private int $numberOfReplicas = 1;
+  private string|false $autoExpandReplicas = false;
+  private string $refreshInterval = '1s';
+  private int $maxResultWindow = 10000;
+  private int $maxDocvalueFieldsSearch = 100;
+  private int $maxScriptFields = 32;
+  private int $maxNgramDiff = 1;
+  private int $maxTermsCount = 65536;
+  private int $maxRegexLength = 1000;
+  private string $gcDeletes = '60s';
+  private int $priority = 1;
+  private int $mappingTotalFieldsLimit = 1000;
+  private int $mappingDepthLimit = 20;
+  private int $mappingNestedFieldsLimit = 50;
+  private int $mappingNestedObjectsLimit = 10000;
+  private ?int $mappingFieldNameLengthLimit = null;
+  private array $similarity = [];
+  private array $analysis = [
+    'analyzer' => [],
+    'tokenizer' => [],
+    'filter' => [],
+    'char_filter' => [],
+    'normalizer' => [],
+  ];
+  private array $mappings = [];
+  private ConfigFactory $configFactory;
 
-  public function __construct(private readonly ElasticsearchProvider $elasticsearchProvider, private readonly ConfigurationFactory $configFactory)
+  public function __construct(private readonly ESProvider $esProvider)
   {
-    // returns NULL if the client connection fails
-    $this->client = $this->elasticsearchProvider->connect();
+    $this->configFactory = Drupal::service('eticsearch.factory.config');
   }
 
   /**
-   * For mappings and settings, refer to the official Elasticsearch documentation:
-   * - https://www.elastic.co/docs/reference/elasticsearch/clients/php/index_management
+   * Loads an existing index factory instance by index name.
+   * @param string $indexName
+   * @return self|null
    */
-  public function createIndex(string $indexName, array $settings = [], array $mappings = [], array $analyzers = [], array $filters = [], array $fields = []): bool
+  public static function load(string $indexName): ?self
   {
-    if ($this->client === NULL) return FALSE;
-    if ($this->indexExists($indexName)) return FALSE;
-
-    // build array from the params
-    $params = [
-      'index' => $indexName,
-    ];
-
-    if (!empty($settings)) {
-      if (!empty($analyzers)) {
-        $settings['analysis']['analyzer'] = $analyzers;
-      }
-
-      if (!empty($filters)) {
-        $settings['analysis']['filter'] = $filters;
-      }
-
-      $params['body']['settings'] = $settings;
+    $configService = Drupal::service('eticsearch.factory.config');
+    if (($index = $configService->getIndices()[$indexName] ?? NULL) !== NULL) {
+      return self::fromArray($index);
     }
-    if (!empty($mappings)) $params['body']['mappings'] = $mappings;
 
-    // if the index was created successfully, we write to the config
-    // - fields are mapping specific, so they have to be created
-    // beforehand and then added to the mapping settings of the index
-    // user can do that by creating a field through UI, assigning it to the specific field
-    // and then recreating the index. (maybe not the best user experience, but it is done only once)
-    if (!empty($fields)) {
-      foreach ($fields as $fieldName => $field) {
-        if (isset($mappings['properties'][$field['parent']])) {
-          $mappings['properties'][$field['parent']]['fields'][$fieldName] = $field;
-          if (isset($mappings['properties'][$field['parent']]['fields'][$fieldName]['parent'])) {
-            unset($mappings['properties'][$field['parent']]['fields'][$fieldName]['parent']);
-          }
-        }
+    return NULL;
+  }
+
+  public static function fromArray(array $entry): self
+  {
+    return self::create(
+      $entry['indexName'],
+      !empty($entry['mappings']) ? MappingFactory::fromArray($entry['mappings']) : NULL,
+      !empty($entry['analysis']['analyzer']) ? array_map(fn($a) => Analyzer::fromArray($a), $entry['analysis']['analyzer']) : [],
+      !empty($entry['analysis']['tokenizer']) ? array_map(fn($t) => Tokenizer::fromArray($t), $entry['analysis']['tokenizer']) : [],
+      !empty($entry['analysis']['filter']) ? array_map(fn($f) => Filter::fromArray($f), $entry['analysis']['filter']) : [],
+      !empty($entry['analysis']['char_filter']) ? array_map(fn($cf) => CharFilter::fromArray($cf), $entry['analysis']['char_filter']) : [],
+      !empty($entry['analysis']['normalizer']) ? array_map(fn($n) => Normalizer::fromArray($n), $entry['analysis']['normalizer']) : [],
+      !empty($entry['similarities']) ? array_map(fn($s) => Similarity::fromArray($s), $entry['similarities']) : [],
+      $entry['options'] ?? []
+    );
+  }
+
+  /**
+   * Creates a new index factory instance with the specified configuration.
+   * @param string $indexName - Name of the index to create.
+   * @param MappingFactory|null $mappingFactory
+   * @param array<Analyzer> $analyzers - Custom analyzers definitions to register with the index.
+   * @param array<Tokenizer> $tokenizers - Custom tokenizers definitions to register with the index.
+   * @param array<Filter> $filters - Custom token filters definitions to register with the index.
+   * @param array<CharFilter> $charFilters - Custom character filters definitions to register with the index.
+   * @param array<Normalizer> $normalizers - Custom normalizers definitions to register with the index.
+   * @param array<Similarity> $similarities - Custom similarity definitions to register with the index.
+   * @param array<string, mixed> $options - Additional index settings options (@example number_of_shards, codec, store_type, number_of_replicas, auto_expand_replicas, refresh_interval, max_result_window, max_docvalue_fields_search, max_script_fields, max_ngram_diff, max_terms_count, max_regex_length, gc_deletes, priority, mapping_total_fields_limit, mapping_depth_limit, mapping_nested_fields_limit, mapping_nested_objects_limit, mapping_field_name_length_limit).
+   * @return self
+   */
+  public static function create(string $indexName, ?MappingFactory $mappingFactory = NULL, array $analyzers = [], array $tokenizers = [],
+                                array  $filters = [], array $charFilters = [], array $normalizers = [], array $similarities = [],
+                                array  $options = []): self
+  {
+    $instance = new self();
+    $instance->_setIndexName($indexName);
+    $instance->_setMappings($mappingFactory);
+
+    if (isset($options['number_of_shards'])) {
+      $instance->_setNumberOfShards($options['number_of_shards']);
+    }
+
+    if (isset($options['codec'])) {
+      $instance->_setCodec($options['codec']);
+    }
+
+    if (isset($options['store_type'])) {
+      $instance->_setStoreType($options['store_type']);
+    }
+
+    foreach ($similarities as $config) {
+      $instance->_addSimilarity($config);
+    }
+
+    foreach ($analyzers as $config) {
+      $instance->_addAnalyzer($config);
+    }
+
+    foreach ($tokenizers as $config) {
+      $instance->_addTokenizer($config);
+    }
+
+    foreach ($filters as $config) {
+      $instance->_addFilter($config);
+    }
+
+    foreach ($charFilters as $config) {
+      $instance->_addCharFilter($config);
+    }
+
+    foreach ($normalizers as $config) {
+      $instance->_addNormalizer($config);
+    }
+
+    if (isset($options['number_of_replicas'])) {
+      $instance->_setNumberOfReplicas($options['number_of_replicas']);
+    }
+
+    if (isset($options['auto_expand_replicas'])) {
+      $instance->_setAutoExpandReplicas($options['auto_expand_replicas']);
+    }
+
+    if (isset($options['refresh_interval'])) {
+      $instance->_setRefreshInterval($options['refresh_interval']);
+    }
+
+    if (isset($options['max_result_window'])) {
+      $instance->_setMaxResultWindow($options['max_result_window']);
+    }
+
+    if (isset($options['max_docvalue_fields_search'])) {
+      $instance->_setMaxDocvalueFieldsSearch($options['max_docvalue_fields_search']);
+    }
+
+    if (isset($options['max_script_fields'])) {
+      $instance->_setMaxScriptFields($options['max_script_fields']);
+    }
+
+    if (isset($options['max_ngram_diff'])) {
+      $instance->_setMaxNgramDiff($options['max_ngram_diff']);
+    }
+
+    if (isset($options['max_terms_count'])) {
+      $instance->_setMaxTermsCount($options['max_terms_count']);
+    }
+
+    if (isset($options['max_regex_length'])) {
+      $instance->_setMaxRegexLength($options['max_regex_length']);
+    }
+
+    if (isset($options['gc_deletes'])) {
+      $instance->_setGcDeletes($options['gc_deletes']);
+    }
+
+    if (isset($options['priority'])) {
+      $instance->_setPriority($options['priority']);
+    }
+
+    if (isset($options['mapping_total_fields_limit'])) {
+      $instance->_setMappingTotalFieldsLimit($options['mapping_total_fields_limit']);
+    }
+
+    if (isset($options['mapping_depth_limit'])) {
+      $instance->_setMappingDepthLimit($options['mapping_depth_limit']);
+    }
+
+    if (isset($options['mapping_nested_fields_limit'])) {
+      $instance->_setMappingNestedFieldsLimit($options['mapping_nested_fields_limit']);
+    }
+
+    if (isset($options['mapping_nested_objects_limit'])) {
+      $instance->_setMappingNestedObjectsLimit($options['mapping_nested_objects_limit']);
+    }
+
+    if (isset($options['mapping_field_name_length_limit'])) {
+      $instance->_setMappingFieldNameLengthLimit($options['mapping_field_name_length_limit']);
+    }
+
+    return $instance;
+  }
+
+  /**
+   * [STATIC]
+   * Sets the index name for the index factory.
+   * @param string $indexName
+   * @return void
+   */
+  private function _setIndexName(string $indexName): void
+  {
+    $this->indexName = $indexName;
+  }
+
+  /**
+   * [STATIC]
+   * Sets the mappings for the index factory.
+   * @param array $mappings
+   * @return void
+   */
+  private function _setMappings(?MappingFactory $mappingFactory): void
+  {
+    $this->mappings = $mappingFactory ? $mappingFactory->toArray()['mappings'] : [];
+  }
+
+  public function toArray(): array
+  {
+    return [
+      'indexName' => $this->indexName,
+      'mappings' => $this->mappings,
+      'similarities' => $this->similarity,
+      'analysis' => $this->analysis,
+      'options' => [
+        'number_of_shards' => $this->numberOfShards,
+        'codec' => $this->codec,
+        'store_type' => $this->storeType,
+        'number_of_replicas' => $this->numberOfReplicas,
+        'auto_expand_replicas' => $this->autoExpandReplicas,
+        'refresh_interval' => $this->refreshInterval,
+        'max_result_window' => $this->maxResultWindow,
+        'max_docvalue_fields_search' => $this->maxDocvalueFieldsSearch,
+        'max_script_fields' => $this->maxScriptFields,
+        'max_ngram_diff' => $this->maxNgramDiff,
+        'max_terms_count' => $this->maxTermsCount,
+        'max_regex_length' => $this->maxRegexLength,
+        'gc_deletes' => $this->gcDeletes,
+        'priority' => $this->priority,
+        'mapping_total_fields_limit' => $this->mappingTotalFieldsLimit,
+        'mapping_depth_limit' => $this->mappingDepthLimit,
+        'mapping_nested_fields_limit' => $this->mappingNestedFieldsLimit,
+        'mapping_nested_objects_limit' => $this->mappingNestedObjectsLimit,
+        'mapping_field_name_length_limit' => $this->mappingFieldNameLengthLimit,
+      ],
+    ];
+  }
+
+  /**
+   * [STATIC PROPERTY]
+   * Number of primary shards. Max 1024.
+   * @param int $numberOfShards
+   * @return void
+   */
+  private function _setNumberOfShards(int $numberOfShards): void
+  {
+    if ($numberOfShards <= 0) $numberOfShards = 1;
+    if ($numberOfShards > 1024) $numberOfShards = 1024;
+
+    $this->numberOfShards = $numberOfShards;
+  }
+
+  /**
+   * [STATIC]
+   * Compression type for stored fields.
+   * 'default' = LZ4 (fast). 'best_compression' = ZSTD (~28% smaller, slower reads).
+   * @param string $codec
+   * @return void
+   */
+  private function _setCodec(string $codec): void
+  {
+    if (!in_array($codec, ['default', 'best_compression'], TRUE)) {
+      $codec = 'default';
+    }
+
+    $this->codec = $codec;
+  }
+
+  /**
+   * [STATIC]
+   * Filesystem implementation used for shard storage.
+   * 'hybridfs' (default) picks the optimal type per file automatically.
+   * Other options: 'niofs', 'mmapfs', 'fs'.
+   * @param string $storeType
+   * @return void
+   */
+  private function _setStoreType(string $storeType): void
+  {
+    if (!in_array($storeType, ['hybridfs', 'niofs', 'mmapfs', 'fs'], TRUE)) {
+      $storeType = 'hybridfs';
+    }
+
+    $this->storeType = $storeType;
+  }
+
+  /**
+   * [STATIC]
+   * Registers a custom named similarity configuration assignable to fields in mappings.
+   * Supported types: BM25, boolean, DFR, IB, LMDirichlet, LMJelinekMercer.
+   * @param Similarity $similarity
+   * @return void
+   * @example $this->_addSimilarity('my_bm25', ['type' => 'BM25', 'k1' => 1.5, 'b' => 0.75])
+   */
+  private function _addSimilarity(Similarity $similarity): void
+  {
+    $config = $similarity->toArray();
+    if (!isset($config['type']) || !in_array($config['type'],
+        ['BM25', 'boolean', 'DFR', 'IB', 'LMDirichlet', 'LMJelinekMercer'], TRUE)) {
+      return;
+    }
+
+    unset($config['name']);
+    $this->similarity[$similarity->getName()] = $config;
+  }
+
+  /**
+   * [STATIC]
+   * Registers a custom named analyzer combining a tokenizer with optional
+   * char_filters and token filters.
+   * @param Analyzer $analyzer
+   * @return void
+   * @example ['type' => 'custom', 'tokenizer' => 'standard', 'filter' => ['lowercase']]
+   */
+  private function _addAnalyzer(Analyzer $analyzer): void
+  {
+    $config = $analyzer->toArray();
+    if (!isset($config['type'])) return;
+
+    unset($config['name']);
+    $this->analysis['analyzer'][$analyzer->getName()] = $config;
+  }
+
+  /**
+   * [STATIC]
+   * Registers a custom named tokenizer definition.
+   * @param Tokenizer $tokenizer
+   * @return void
+   * @example ['type' => 'ngram', 'min_gram' => 2, 'max_gram' => 3]
+   */
+  private function _addTokenizer(Tokenizer $tokenizer): void
+  {
+    $config = $tokenizer->toArray();
+    if (!isset($config['type'])) return;
+
+    unset($config['name']);
+    $this->analysis['tokenizer'][$tokenizer->getName()] = $config;
+  }
+
+  /**
+   * [STATIC]
+   * Registers a custom named token filter definition applied after tokenization.
+   * @param Filter $filter
+   * @return void
+   * @example ['type' => 'stop', 'stopwords' => ['the', 'a']]
+   */
+  private function _addFilter(Filter $filter): void
+  {
+    $config = $filter->toArray();
+    if (!isset($config['type'])) return;
+
+    unset($config['name']);
+    $this->analysis['filter'][$filter->getName()] = $config;
+  }
+
+  /**
+   * [STATIC]
+   * Registers a custom named character filter definition applied before tokenization.
+   * @param CharFilter $charFilter
+   * @return void
+   * @example ['type' => 'html_strip'] or ['type' => 'mapping', 'mappings' => ['ph => f']]
+   */
+  private function _addCharFilter(CharFilter $charFilter): void
+  {
+    $config = $charFilter->toArray();
+    if (!isset($config['type'])) return;
+
+    unset($config['name']);
+    $this->analysis['char_filter'][$charFilter->getName()] = $config;
+  }
+
+  /**
+   * [STATIC]
+   * Registers a custom named normalizer for keyword fields (no tokenizer — filters only).
+   * @param Normalizer $normalizer
+   * @return void
+   * @example ['type' => 'custom', 'filter' => ['lowercase', 'asciifolding']]
+   */
+  private function _addNormalizer(Normalizer $normalizer): void
+  {
+    $config = $normalizer->toArray();
+    if (!isset($config['type'])) return;
+
+    unset($config['name']);
+    $this->analysis['normalizer'][$normalizer->getName()] = $config;
+  }
+
+  public static function fromConfig(string $indexName): ?self
+  {
+    /** @var ConfigFactory $configService */
+    $configService = Drupal::service('eticsearch.factory.config');
+
+    if (($index = $configService->getIndices()[$indexName] ?? NULL) !== NULL) {
+      return self::fromArray($index);
+    }
+
+    return NULL;
+  }
+
+  /**
+   * Updates dynamic settings of the index.
+   * @param array<string, mixed> $options - Additional index settings options (@example number_of_shards, codec, store_type, number_of_replicas, auto_expand_replicas, refresh_interval, max_result_window, max_docvalue_fields_search, max_script_fields, max_ngram_diff, max_terms_count, max_regex_length, gc_deletes, priority, mapping_total_fields_limit, mapping_depth_limit, mapping_nested_fields_limit, mapping_nested_objects_limit, mapping_field_name_length_limit).
+   * @return $this
+   */
+  public function updateDynamicSettings(array $options): self
+  {
+    if (isset($options['number_of_replicas'])) {
+      $this->_setNumberOfReplicas($options['number_of_replicas']);
+    }
+
+    if (isset($options['auto_expand_replicas'])) {
+      $this->_setAutoExpandReplicas($options['auto_expand_replicas']);
+    }
+
+    if (isset($options['refresh_interval'])) {
+      $this->_setRefreshInterval($options['refresh_interval']);
+    }
+
+    if (isset($options['max_result_window'])) {
+      $this->_setMaxResultWindow($options['max_result_window']);
+    }
+
+    if (isset($options['max_docvalue_fields_search'])) {
+      $this->_setMaxDocvalueFieldsSearch($options['max_docvalue_fields_search']);
+    }
+
+    if (isset($options['max_script_fields'])) {
+      $this->_setMaxScriptFields($options['max_script_fields']);
+    }
+
+    if (isset($options['max_ngram_diff'])) {
+      $this->_setMaxNgramDiff($options['max_ngram_diff']);
+    }
+
+    if (isset($options['max_terms_count'])) {
+      $this->_setMaxTermsCount($options['max_terms_count']);
+    }
+
+    if (isset($options['max_regex_length'])) {
+      $this->_setMaxRegexLength($options['max_regex_length']);
+    }
+
+    if (isset($options['gc_deletes'])) {
+      $this->_setGcDeletes($options['gc_deletes']);
+    }
+
+    if (isset($options['priority'])) {
+      $this->_setPriority($options['priority']);
+    }
+
+    if (isset($options['mapping_total_fields_limit'])) {
+      $this->_setMappingTotalFieldsLimit($options['mapping_total_fields_limit']);
+    }
+
+    if (isset($options['mapping_depth_limit'])) {
+      $this->_setMappingDepthLimit($options['mapping_depth_limit']);
+    }
+
+    if (isset($options['mapping_nested_fields_limit'])) {
+      $this->_setMappingNestedFieldsLimit($options['mapping_nested_fields_limit']);
+    }
+
+    if (isset($options['mapping_nested_objects_limit'])) {
+      $this->_setMappingNestedObjectsLimit($options['mapping_nested_objects_limit']);
+    }
+
+    if (isset($options['mapping_field_name_length_limit'])) {
+      $this->_setMappingFieldNameLengthLimit($options['mapping_field_name_length_limit']);
+    }
+
+    return $this;
+  }
+
+  /**
+   * [DYNAMIC PROPERTY]
+   * Number of replica shards per primary.
+   * More replicas = better read throughput and fault tolerance.
+   * @param int $numberOfReplicas
+   * @return void
+   */
+  private function _setNumberOfReplicas(int $numberOfReplicas): void
+  {
+    if ($numberOfReplicas < 1) $numberOfReplicas = 1;
+
+    $this->numberOfReplicas = $numberOfReplicas;
+  }
+
+  /**
+   * [DYNAMIC]
+   * Automatically scale replicas based on cluster node count.
+   * Format: '0-5', '0-all', or false to disable.
+   * @param string|false $autoExpandReplicas
+   * @return void
+   */
+  private function _setAutoExpandReplicas(string|false $autoExpandReplicas): void
+  {
+    if ($autoExpandReplicas !== false) {
+      if (!preg_match('/^\d+-(all|\d+)$/', $autoExpandReplicas)) {
+        $autoExpandReplicas = false;
       }
+    }
+
+    $this->autoExpandReplicas = $autoExpandReplicas;
+  }
+
+  /**
+   * [DYNAMIC]
+   * How often the index is refreshed to make newly indexed documents visible to search.
+   * Use '-1' to disable refresh entirely.
+   * Format: time value string @param string $refreshInterval
+   * @return void
+   * @example '1s', '500ms', or '-1'.
+   */
+  private function _setRefreshInterval(string $refreshInterval): void
+  {
+    if ($refreshInterval !== '-1' && !preg_match('/^\d+(ms|s|m|h|d)$/', $refreshInterval)) {
+      $refreshInterval = '1s';
+    }
+
+    $this->refreshInterval = $refreshInterval;
+  }
+
+  /**
+   * [DYNAMIC]
+   * Maximum value for search requests.
+   * Raising this is memory-expensive.
+   * @param int $maxResultWindow
+   * @return void
+   */
+  private function _setMaxResultWindow(int $maxResultWindow): void
+  {
+    if ($maxResultWindow < 1) $maxResultWindow = 10000;
+
+    $this->maxResultWindow = $maxResultWindow;
+  }
+
+  /**
+   * [DYNAMIC]
+   * Maximum number of docvalue_fields that can be requested per search query.
+   * @param int $maxDocvalueFieldsSearch
+   * @return void
+   */
+  private function _setMaxDocvalueFieldsSearch(int $maxDocvalueFieldsSearch): void
+  {
+    if ($maxDocvalueFieldsSearch < 1) $maxDocvalueFieldsSearch = 100;
+
+    $this->maxDocvalueFieldsSearch = $maxDocvalueFieldsSearch;
+  }
+
+  /**
+   * [DYNAMIC]
+   * Maximum number of script_fields allowed per search request.
+   * @param int $maxScriptFields
+   * @return void
+   */
+  private function _setMaxScriptFields(int $maxScriptFields): void
+  {
+    if ($maxScriptFields < 1) $maxScriptFields = 32;
+
+    $this->maxScriptFields = $maxScriptFields;
+  }
+
+  /**
+   * [DYNAMIC]
+   * Maximum allowed difference between min_gram and max_gram for the NGram tokenizer.
+   * @param int $maxNgramDiff
+   * @return void
+   */
+  private function _setMaxNgramDiff(int $maxNgramDiff): void
+  {
+    if ($maxNgramDiff < 0) $maxNgramDiff = 1;
+
+    $this->maxNgramDiff = $maxNgramDiff;
+  }
+
+  /**
+   * [DYNAMIC]
+   * Maximum number of terms that can be passed in a single Terms query.
+   * @param int $maxTermsCount
+   * @return void
+   */
+  private function _setMaxTermsCount(int $maxTermsCount): void
+  {
+    if ($maxTermsCount < 1) $maxTermsCount = 65536;
+
+    $this->maxTermsCount = $maxTermsCount;
+  }
+
+  /**
+   * [DYNAMIC]
+   * Maximum character length of a regex pattern used in Regexp or Wildcard queries.
+   * @param int $maxRegexLength
+   * @return void
+   */
+  private function _setMaxRegexLength(int $maxRegexLength): void
+  {
+    if ($maxRegexLength < 1) $maxRegexLength = 1000;
+
+    $this->maxRegexLength = $maxRegexLength;
+  }
+
+  /**
+   * [DYNAMIC]
+   * How long a deleted document's version number is retained for optimistic concurrency control.
+   * After this window the version is discarded and cannot be referenced.
+   * Format: time value string @param string $gcDeletes
+   * @return void
+   * @example '60s', '5m'.
+   */
+  private function _setGcDeletes(string $gcDeletes): void
+  {
+    if (!preg_match('/^\d+(ms|s|m|h|d)$/', $gcDeletes)) {
+      $gcDeletes = '60s';
+    }
+
+    $this->gcDeletes = $gcDeletes;
+  }
+
+  /**
+   * [DYNAMIC]
+   * Recovery priority after a cluster restart.
+   * Higher integer = this index is recovered before lower-priority indices.
+   * @param int $priority
+   * @return void
+   */
+  private function _setPriority(int $priority): void
+  {
+    if ($priority < 0) $priority = 1;
+
+    $this->priority = $priority;
+  }
+
+  /**
+   * [DYNAMIC]
+   * Maximum total number of fields in the index mapping.
+   * Guards against mapping explosion from dynamic field creation.
+   * @param int $mappingTotalFieldsLimit
+   * @return void
+   */
+  private function _setMappingTotalFieldsLimit(int $mappingTotalFieldsLimit): void
+  {
+    if ($mappingTotalFieldsLimit < 1) $mappingTotalFieldsLimit = 1000;
+
+    $this->mappingTotalFieldsLimit = $mappingTotalFieldsLimit;
+  }
+
+  /**
+   * [DYNAMIC]
+   * Maximum nesting depth for object fields.
+   * Each level of object/nested nesting counts toward this limit.
+   * @param int $mappingDepthLimit
+   * @return void
+   */
+  private function _setMappingDepthLimit(int $mappingDepthLimit): void
+  {
+    if ($mappingDepthLimit < 1) $mappingDepthLimit = 20;
+
+    $this->mappingDepthLimit = $mappingDepthLimit;
+  }
+
+  /**
+   * [DYNAMIC]
+   * Maximum number of distinct nested field type definitions across the entire mapping.
+   * @param int $mappingNestedFieldsLimit
+   * @return void
+   */
+  private function _setMappingNestedFieldsLimit(int $mappingNestedFieldsLimit): void
+  {
+    if ($mappingNestedFieldsLimit < 1) $mappingNestedFieldsLimit = 50;
+
+    $this->mappingNestedFieldsLimit = $mappingNestedFieldsLimit;
+  }
+
+  /**
+   * [DYNAMIC]
+   * Maximum number of nested JSON objects a single document can contain in total
+   * across all nested fields.
+   * @param int $mappingNestedObjectsLimit
+   * @return void
+   */
+  private function _setMappingNestedObjectsLimit(int $mappingNestedObjectsLimit): void
+  {
+    if ($mappingNestedObjectsLimit < 1) $mappingNestedObjectsLimit = 10000;
+
+    $this->mappingNestedObjectsLimit = $mappingNestedObjectsLimit;
+  }
+
+  /**
+   * [DYNAMIC]
+   * Maximum character length allowed for field names.
+   * null = no enforced limit.
+   * @param int|null $mappingFieldNameLengthLimit
+   * @return void
+   */
+  private function _setMappingFieldNameLengthLimit(?int $mappingFieldNameLengthLimit): void
+  {
+    if ($mappingFieldNameLengthLimit !== null && $mappingFieldNameLengthLimit < 1) {
+      $mappingFieldNameLengthLimit = null;
+    }
+
+    $this->mappingFieldNameLengthLimit = $mappingFieldNameLengthLimit;
+  }
+
+  /**
+   * Saves the index configuration and creates the index in Elasticsearch.
+   * If the index already exists it is deleted first, then recreated with
+   * the current settings, mappings, and analysis configuration.
+   * @return bool TRUE on success, FALSE if the ES client is unavailable or the operation fails.
+   */
+  public function save(): bool
+  {
+    $client = $this->esProvider->connect();
+    if ($client === FALSE) {
+      return FALSE;
     }
 
     try {
-      $response = $this->client->indices()->create($params);
-      $response = $response->asBool();
+      $exists = $client->indices()->exists(['index' => $this->indexName])->asBool();
+      if ($exists) {
+        $client->indices()->delete(['index' => $this->indexName]);
+      }
 
-      $index = [
-        $indexName => [
-          'eticsearch_index:analyzers' => $analyzers,
-          'eticsearch_index:filters' => $filters,
-          'eticsearch_index:mappings' => $mappings,
-          'eticsearch_index:settings' => $settings,
-          'eticsearch_index:fields' => $fields,
-        ]
+      $options = $this->toArray()['options'];
+      $settings = [
+        'number_of_shards' => $options['number_of_shards'],
+        'codec' => $options['codec'],
+        'store' => ['type' => $options['store_type']],
+        'number_of_replicas' => $options['number_of_replicas'],
+        'refresh_interval' => $options['refresh_interval'],
+        'max_result_window' => $options['max_result_window'],
+        'max_docvalue_fields_search' => $options['max_docvalue_fields_search'],
+        'max_script_fields' => $options['max_script_fields'],
+        'max_ngram_diff' => $options['max_ngram_diff'],
+        'max_terms_count' => $options['max_terms_count'],
+        'max_regex_length' => $options['max_regex_length'],
+        'gc_deletes' => $options['gc_deletes'],
+        'priority' => $options['priority'],
+        'mapping' => [
+          'total_fields' => ['limit' => $options['mapping_total_fields_limit']],
+          'depth' => ['limit' => $options['mapping_depth_limit']],
+          'nested_fields' => ['limit' => $options['mapping_nested_fields_limit']],
+          'nested_objects' => ['limit' => $options['mapping_nested_objects_limit']],
+        ],
       ];
 
-      $existingIndices = $this->configFactory->getSingle('eticsearch:indices') ?? [];
-      $indices = array_merge($existingIndices, $index);
-      $this->configFactory->setValue('eticsearch:indices', $indices);
-
-      return $response;
-    } catch (ClientResponseException|MissingParameterException|ServerResponseException $e) {
-      Logger::send($e->getMessage(), [], 'error');
-      return FALSE;
-    }
-  }
-
-  public function recreateIndex(string $indexName): bool {
-    if ($this->client === NULL) return FALSE;
-    if (!$this->indexExists($indexName)) return FALSE;
-
-    $existingIndices = $this->configFactory->getSingle('eticsearch:indices') ?? [];
-    $currentIndex = $existingIndices[$indexName] ?? NULL;
-
-    if ($currentIndex === NULL) return FALSE;
-
-    $fields = $currentIndex['eticsearch_index:fields'] ?? [];
-    if (empty($fields)) return FALSE;
-
-    $settings = $currentIndex['eticsearch_index:settings'] ?? [];
-    $mappings = $currentIndex['eticsearch_index:mappings'] ?? [];
-    $analyzers = $currentIndex['eticsearch_index:analyzers'] ?? [];
-    $filters = $currentIndex['eticsearch_index:filters'] ?? [];
-
-    // delete the index and recreate it with the new fields
-    $response = $this->deleteIndex($indexName);
-    if (!$response) return FALSE;
-
-    return $this->createIndex($indexName, $settings, $mappings, $analyzers, $filters, $fields);
-  }
-
-  public function indexExists(string $indexName): bool
-  {
-    if ($this->client === NULL) return FALSE;
-
-    try {
-      $response = $this->client->indices()->exists(['index' => $indexName]);
-      return $response->asBool();
-    } catch (ClientResponseException|MissingParameterException|ServerResponseException $e) {
-      Logger::send($e->getMessage(), [], 'error');
-      return FALSE;
-    }
-  }
-
-  public function deleteIndex(string $indexName): bool
-  {
-    if ($this->client === NULL) return FALSE;
-    if (!$this->indexExists($indexName)) return FALSE;
-
-    try {
-      $response = $this->client->indices()->delete(['index' => $indexName]);
-      $response = $response->asBool();
-
-      if ($response) {
-        // if the index was deleted successfully, perform cleanup in the config
-        // for index itself and fields. Analyzers and fields are not tied to the index.
-        $existingIndices = $this->configFactory->getSingle('eticsearch:indices') ?? [];
-        if (isset($existingIndices[$indexName])) {
-          unset($existingIndices[$indexName]);
-          $this->configFactory->setValue('eticsearch:indices', $existingIndices);
-        }
-
-        $existingFields = $this->configFactory->getSingle('eticsearch:fields') ?? [];
-        if (isset($existingFields[$indexName])) {
-          unset($existingFields[$indexName]);
-          $this->configFactory->setValue('eticsearch:fields', $existingFields);
-        }
+      if ($options['auto_expand_replicas'] !== FALSE) {
+        $settings['auto_expand_replicas'] = $options['auto_expand_replicas'];
       }
 
-      return $response;
+      if ($options['mapping_field_name_length_limit'] !== NULL) {
+        $settings['mapping']['field_name_length'] = ['limit' => $options['mapping_field_name_length_limit']];
+      }
+
+      $analysis = array_filter($this->analysis, fn($section) => !empty($section));
+      if (!empty($analysis)) {
+        $settings['analysis'] = $analysis;
+      }
+
+      if (!empty($this->similarity)) {
+        $settings['similarity'] = $this->similarity;
+      }
+
+      $params = ['index' => $this->indexName];
+      $params['body']['settings'] = $settings;
+
+      if (!empty($this->mappings)) {
+        $params['body']['mappings'] = $this->mappings;
+      }
+
+      $client->indices()->create($params);
     } catch (ClientResponseException|MissingParameterException|ServerResponseException $e) {
       Logger::send($e->getMessage(), [], 'error');
       return FALSE;
     }
+
+    $indices = $this->configFactory->getIndices();
+    $indices[$this->indexName] = $this->toArray();
+    $this->configFactory->set('etic:indices', $indices);
+
+    return TRUE;
   }
 
   /**
-   * Refer to the official Elasticsearch documentation for index settings:
-   * - https://www.elastic.co/docs/reference/elasticsearch/index-settings/index-modules
+   * Deletes the index configuration and removes the index from Elasticsearch.
+   * @param string $indexName
+   * @return bool
    */
-  public function createIndexSettings(
-    string  $indexName,
-    int     $numberOfShards = 1,
-    ?int    $numberOfRoutingShards = NULL,
-    string  $codec = 'default',
-    string  $mode = 'standard',
-    int     $routingPartitionSize = 1,
-    int     $numberOfReplicas = 1,
-    bool    $autoExpandReplicas = FALSE,
-    string  $searchIdleAfter = '30s',
-    string  $refreshInterval = '1s',
-    int     $maxResultWindow = 10000,
-    int     $maxInnerResultWindow = 100,
-    int     $maxRescoreWindow = 10000,
-    int     $maxDocvalueFieldsSearch = 100,
-    int     $maxScriptFields = 32,
-    int     $maxNgramDiff = 1,
-    int     $maxShingleDiff = 3,
-    int     $maxRefreshListeners = 3,
-    int     $analyzeMaxTokenCount = 10000,
-    int     $highlightMaxAnalyzedOffset = 1000000,
-    int     $maxTermsCount = 65536,
-    int     $maxRegexLength = 1000,
-    string  $queryDefaultField = '*',
-    string  $routingAllocationEnable = 'all',
-    string  $routingRebalanceEnable = 'all',
-    string  $gcDeletes = '60s',
-    ?string $defaultPipeline = NULL,
-    ?string $finalPipeline = NULL,
-    bool    $hidden = FALSE
-  ): array
+  public static function delete(string $indexName): bool
   {
-    $index = [
-      /* static settings */
-      'number_of_shards' => $numberOfShards,
-      'codec' => $codec,
-      'mode' => $mode,
-      'routing_partition_size' => $routingPartitionSize,
-
-      /* dynamic settings */
-      'number_of_replicas' => $numberOfReplicas,
-      'auto_expand_replicas' => $autoExpandReplicas,
-      'search' => [
-        'idle' => [
-          'after' => $searchIdleAfter,
-        ]
-      ],
-      'refresh_interval' => $refreshInterval,
-      'max_result_window' => $maxResultWindow,
-      'max_inner_result_window' => $maxInnerResultWindow,
-      'max_rescore_window' => $maxRescoreWindow,
-      'max_docvalue_fields_search' => $maxDocvalueFieldsSearch,
-      'max_script_fields' => $maxScriptFields,
-      'max_ngram_diff' => $maxNgramDiff,
-      'max_shingle_diff' => $maxShingleDiff,
-      'max_refresh_listeners' => $maxRefreshListeners,
-      'analyze' => [
-        'max_token_count' => $analyzeMaxTokenCount,
-      ],
-      'highlight' => [
-        'max_analyzed_offset' => $highlightMaxAnalyzedOffset,
-      ],
-      'max_terms_count' => $maxTermsCount,
-      'max_regex_length' => $maxRegexLength,
-      'query' => [
-        'default_field' => $queryDefaultField,
-      ],
-      'routing' => [
-        'allocation' => [
-          'enable' => $routingAllocationEnable,
-        ],
-        'rebalance' => [
-          'enable' => $routingRebalanceEnable,
-        ],
-      ],
-      'gc_deletes' => $gcDeletes,
-      'hidden' => $hidden,
-    ];
-
-    // handle provided values that were by default set to NULL
-    if ($numberOfRoutingShards !== NULL) $index['number_of_routing_shards'] = $numberOfRoutingShards;
-    if ($defaultPipeline !== NULL) $index['default_pipeline'] = $defaultPipeline;
-    if ($finalPipeline !== NULL) $index['final_pipeline'] = $finalPipeline;
-
-    // handle analysis setting
-    // it has to call a function to build the array, because of the complexity of the setting.
-    $functionName = 'eticsearch_build_analysis_settings_' . strtolower($indexName) . '_alter';
-    if (function_exists($functionName)) {
-      $analysisSettingsDefault = [];
-      $analysisSettings = call_user_func($functionName, [$analysisSettingsDefault]);
-      if (is_array($analysisSettings)) {
-        if (!empty($analysisSettings)) $index['analysis'] = $analysisSettings;
-      }
-    }
-
-    return $index;
-  }
-
-  public function createIndexMappings(string $indexName, string $entityType, string $bundle): array
-  {
-    // TODO: extend support for more entity types
-    return match($entityType) {
-      'node' => $this->createNodeMappings($indexName, $bundle),
-      default => throw new InvalidArgumentException('Unsupported entity type: ' . $entityType),
-    };
-  }
-
-  private function createNodeMappings(string $indexName, string $contentType): array {
-    /** @var Drupal\eticsearch\Manager\EntityFieldManager $entityFieldManager */
-    $entityFieldManager = Drupal::service('eticsearch.entity_field.manager');
-    $fields = $entityFieldManager->getEntityFieldTypeMappings('node', $contentType);
-
-    $functionName = 'eticsearch_build_mappings' . strtolower($indexName) . '_alter';
-    $mappings = [
-      'properties' => $fields,
-    ];
-    if (function_exists($functionName)) {
-      $mappings = call_user_func($functionName, [$mappings]);
-    }
-
-    return $mappings;
+    // todo: implement config delete
+    // todo: implement index deletion in ES
   }
 }

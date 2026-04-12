@@ -1,6 +1,6 @@
 <?php
 
-namespace Drupal\eticsearch\Factory;
+namespace Drupal\eticsearch;
 
 use Drupal;
 use InvalidArgumentException;

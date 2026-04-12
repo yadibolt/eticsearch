@@ -1,6 +1,0 @@
-eticsearch.settings:
-  title: 'Eticsearch'
-  description: 'Configure Eticsearch.'
-  route_name: eticsearch.settings
-  parent: system.admin_config_search
-  weight: 10

@@ -1,27 +1,37 @@
 services:
-  eticsearch.configuration.factory:
-    class: Drupal\eticsearch\Factory\ConfigurationFactory
+  eticsearch.factory.config:
+    class: Drupal\eticsearch\Factory\ConfigFactory
     arguments:
       - '@config.factory'
 
-  eticsearch.elasticsearch.provider:
-    class: Drupal\eticsearch\Provider\ElasticSearchProvider
-    arguments:
-      - '@eticsearch.configuration.factory'
+  eticsearch.provider.elasticsearch:
+    class: Drupal\eticsearch\Provider\ESProvider
 
-  eticsearch.entity_field.manager:
-    class: Drupal\eticsearch\Manager\EntityFieldManager
-    arguments:
-      - '@eticsearch.configuration.factory'
-
-  eticsearch.index.factory:
+  eticsearch.factory.index:
     class: Drupal\eticsearch\Factory\IndexFactory
     arguments:
-      - '@eticsearch.elasticsearch.provider'
-      - '@eticsearch.configuration.factory'
+      - '@eticsearch.provider.elasticsearch'
 
-  eticsearch.analyzer.factory:
+  eticsearch.factory.field:
+    class: Drupal\eticsearch\Factory\FieldFactory
+
+  eticsearch.factory.mapping:
+    class: Drupal\eticsearch\Factory\MappingFactory
+
+  eticsearch.factory.analyzer:
     class: Drupal\eticsearch\Analyzer
 
-  eticsearch.filter.factory:
-     class: Drupal\eticsearch\Filter
+  eticsearch.factory.char_filter:
+    class: Drupal\eticsearch\CharFilter
+
+  eticsearch.factory.filter:
+    class: Drupal\eticsearch\Filter
+
+  eticsearch.factory.normalizer:
+    class: Drupal\eticsearch\Normalizer
+
+  eticsearch.factory.similarity:
+    class: Drupal\eticsearch\Similarity
+
+  eticsearch.factory.tokenizer:
+    class: Drupal\eticsearch\Tokenizer
