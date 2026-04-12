@@ -34,6 +34,31 @@ class MappingFactory
     return $instance;
   }
 
+  public static function fromArray(array $entry): self {
+    return self::create(
+      $entry['dynamic'] ?? TRUE,
+      $entry['date_detection'] ?? TRUE,
+      $entry['numeric_detection'] ?? FALSE,
+      $entry['properties'] ?? []
+    );
+  }
+
+  /**
+   * Formats the mapping configuration as array for use in ES config.
+   * @return array
+   */
+  public function toArray(): array
+  {
+    return [
+      'mappings' => [
+        'dynamic' => $this->dynamic,
+        'date_detection' => $this->date_detection,
+        'numeric_detection' => $this->numeric_detection,
+        'properties' => $this->properties,
+      ]
+    ];
+  }
+
   private function _setDynamic(bool|string $dynamic): void
   {
     if (!is_bool($dynamic)) {
@@ -60,21 +85,5 @@ class MappingFactory
   private function _setProperties(array $fields): void
   {
     $this->properties = $fields;
-  }
-
-  /**
-   * Formats the mapping configuration as array for use in ES config.
-   * @return array
-   */
-  public function toArray(): array
-  {
-    return [
-      'mappings' => [
-        'dynamic' => $this->dynamic,
-        'date_detection' => $this->date_detection,
-        'numeric_detection' => $this->numeric_detection,
-        'properties' => $this->properties,
-      ]
-    ];
   }
 }

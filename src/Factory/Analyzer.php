@@ -2,6 +2,7 @@
 
 namespace Drupal\eticsearch\Factory;
 
+use Drupal;
 use InvalidArgumentException;
 
 class Analyzer
@@ -20,6 +21,7 @@ class Analyzer
     'spanish', 'swedish', 'turkish', 'thai',
   ];
 
+  private ConfigFactory $configFactory;
   private string $name = 'analyzer';
   private string $type = 'standard';
   private null|string|array $stopwords = NULL;
@@ -37,10 +39,11 @@ class Analyzer
 
   public function __construct()
   {
+    $this->configFactory = Drupal::service('eticsearch.factory.config');
   }
 
   public static function create(string $name, string $type, null|string|array $stopwords = NULL, int $maxTokenLength = 255, ?string $pattern = NULL,
-                                string $flags = NULL, bool $lowercase = TRUE, string $separator = ' ', int $maxOutputSize = 255, ?string $language = NULL,
+                                ?string $flags = NULL, bool $lowercase = TRUE, string $separator = ' ', int $maxOutputSize = 255, ?string $language = NULL,
                                 array  $stemExclusion = [], ?Tokenizer $tokenizer = NULL, array $charFilters = [], array $filters = []): self
   {
     if (!in_array($type, self::CONFIGURABLE_ANALYZER_TYPES, TRUE)) {
@@ -68,15 +71,66 @@ class Analyzer
     return $instance;
   }
 
-  public static function load(string $indexName, string $analyzerName): ?self
+  public static function load(string $retrieval = 'single', ?string $analyzerName = NULL): NULL|array|self
   {
-    // todo: return instantiated index factory from the config or null if does not exists
+    if (!in_array($retrieval, ['single', 'all'], TRUE)) {
+      throw new InvalidArgumentException('load only accepts retrieval as one of: single, all');
+    }
+
+    if ($retrieval === 'all') {
+      /** @var ConfigFactory $configService */
+      $configService = Drupal::service('eticsearch.factory.config');
+      $analyzers = $configService->getAnalyzers();
+
+      return array_map(fn($a) => self::fromArray($a), $analyzers);
+    }
+
+    if ($analyzerName === NULL) {
+      throw new InvalidArgumentException('load with retrieval single requires an analyzer name');
+    }
+
+    /** @var ConfigFactory $configService */
+    $configService = Drupal::service('eticsearch.factory.config');
+    if (($index = $configService->getAnalyzers()[$analyzerName] ?? NULL) !== NULL) {
+      return self::fromArray($index);
+    }
+
+    return NULL;
   }
 
-  public static function delete(string $indexName, string $analyzerName): bool
+  public static function delete(string $analyzerName): bool
   {
-    // todo: implement config delete
-    // todo: implement index deletion in ES
+    /** @var ConfigFactory $configService */
+    $configService = Drupal::service('eticsearch.factory.config');
+
+    // we cannot delete the analyzer if some index is using it
+    $indices = $configService->getIndices();
+    foreach ($indices as $index) {
+      if (in_array($analyzerName, $index['analyzers'] ?? [], TRUE)) {
+        return FALSE;
+      }
+    }
+
+    return $configService->deleteAnalyzer($analyzerName);
+  }
+
+  public static function fromArray(array $entry): self {
+    return self::create(
+      $entry['name'] ?? 'analyzer',
+        $entry['type'] ?? 'standard',
+        $entry['stopwords'] ?? NULL,
+        $entry['max_token_length'] ?? 255,
+        $entry['pattern'] ?? NULL,
+        $entry['flags'] ?? NULL,
+        $entry['lowercase'] ?? TRUE,
+        $entry['separator'] ?? ' ',
+        $entry['max_output_size'] ?? 255,
+        $entry['language'] ?? NULL,
+        $entry['stem_exclusion'] ?? [],
+      isset($entry['tokenizer']) ? Tokenizer::fromArray($entry['tokenizer']) : NULL,
+      array_map(fn($cf) => CharFilter::fromArray($cf), $entry['char_filter'] ?? []),
+      array_map(fn($f) => Filter::fromArray($f), $entry['filter'] ?? []),
+    );
   }
 
   /**
@@ -87,6 +141,7 @@ class Analyzer
   public function toArray(): array
   {
     $props = [
+      'name' => $this->name,
       'type' => $this->type,
     ];
 
@@ -133,8 +188,10 @@ class Analyzer
 
   public function save()
   {
-    // todo: implement config save
-    // todo: implement index creation in ES
+    $analyzers = $this->configFactory->getAnalyzers();
+    $analyzers[$this->name] = $this->toArray();
+
+    $this->configFactory->set('etic:analyzers', $analyzers);
   }
 
   private function _setName(string $name): void

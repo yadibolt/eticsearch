@@ -2,14 +2,19 @@
 
 namespace Drupal\eticsearch\Factory;
 
+use Drupal;
+use InvalidArgumentException;
+
 class Normalizer
 {
+  private ConfigFactory $configFactory;
   private string $name = 'normalizer';
   private array $charFilters = [];
   private array $filters = [];
 
   public function __construct()
   {
+    $this->configFactory = Drupal::service('eticsearch.factory.config');
   }
 
   public static function create(string $name, array $charFilters = [], array $filters = []): self
@@ -22,15 +27,55 @@ class Normalizer
     return $instance;
   }
 
-  public static function load(string $indexName, string $normalizerName): ?self
+  public static function load(string $retrieval = 'single', ?string $normalizerName = NULL): NULL|array|self
   {
-    // todo: return instantiated index factory from the config or null if does not exists
+    if (!in_array($retrieval, ['single', 'all'], TRUE)) {
+      throw new InvalidArgumentException('load only accepts retrieval as one of: single, all');
+    }
+
+    if ($retrieval === 'all') {
+      /** @var ConfigFactory $configService */
+      $configService = Drupal::service('eticsearch.factory.config');
+      $normalizers = $configService->getNormalizers();
+
+      return array_map(fn($n) => self::fromArray($n), $normalizers);
+    }
+
+    if ($normalizerName === NULL) {
+      throw new InvalidArgumentException('load with retrieval single requires a normalizer name');
+    }
+
+    /** @var ConfigFactory $configService */
+    $configService = Drupal::service('eticsearch.factory.config');
+    if (($normalizer = $configService->getNormalizers()[$normalizerName] ?? NULL) !== NULL) {
+      return self::fromArray($normalizer);
+    }
+
+    return NULL;
   }
 
-  public static function delete(string $indexName, string $normalizerName): bool
+  public static function delete(string $normalizerName): bool
   {
-    // todo: implement config delete
-    // todo: implement index deletion in ES
+    /** @var ConfigFactory $configService */
+    $configService = Drupal::service('eticsearch.factory.config');
+
+    // we cannot delete the normalizer if some index is using it
+    $indices = $configService->getIndices();
+    foreach ($indices as $index) {
+      if (in_array($normalizerName, $index['normalizers'] ?? [], TRUE)) {
+        return FALSE;
+      }
+    }
+
+    return $configService->deleteNormalizer($normalizerName);
+  }
+
+  public static function fromArray(array $entry): self {
+    return self::create(
+      $entry['name'] ?? 'normalizer',
+      $entry['char_filters'] ?? [],
+      $entry['filters'] ?? []
+    );
   }
 
   /**
@@ -40,6 +85,7 @@ class Normalizer
   public function toArray(): array
   {
     $props = [
+      'name' => $this->name,
       'type' => 'custom',
     ];
 
@@ -49,10 +95,12 @@ class Normalizer
     return $props;
   }
 
-  public function save()
+  public function save(): void
   {
-    // todo: implement config save
-    // todo: implement index creation in ES
+    $normalizers = $this->configFactory->getNormalizers();
+    $normalizers[$this->name] = $this->toArray();
+
+    $this->configFactory->set('etic:normalizers', $normalizers);
   }
 
   private function _setName(string $name): void

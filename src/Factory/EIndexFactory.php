@@ -2,6 +2,8 @@
 
 namespace Drupal\eticsearch\Factory;
 
+use Drupal;
+
 /**
  * Factory for the indices.
  */
@@ -36,10 +38,11 @@ class EIndexFactory
     'normalizer' => [],
   ];
   private array $mappings = [];
+  private ConfigFactory $configFactory;
 
   public function __construct()
   {
-
+    $this->configFactory = Drupal::service('eticsearch.factory.config');
   }
 
   /**
@@ -247,7 +250,12 @@ class EIndexFactory
    */
   public static function load(string $indexName): ?self
   {
-    // todo: return instantiated index factory from the config or null if does not exists
+    $configService = Drupal::service('eticsearch.factory.config');
+    if (($index = $configService->getIndices()[$indexName] ?? NULL) !== NULL) {
+      return self::fromArray($index);
+    }
+
+    return NULL;
   }
 
   /**
@@ -261,14 +269,72 @@ class EIndexFactory
     // todo: implement index deletion in ES
   }
 
+  public static function fromConfig(string $indexName): ?self {
+    /** @var ConfigFactory $configService */
+    $configService = Drupal::service('eticsearch.factory.config');
+
+    if (($index = $configService->getIndices()[$indexName] ?? NULL) !== NULL) {
+      return self::fromArray($index);
+    }
+
+    return NULL;
+  }
+
+  public static function fromArray(array $entry): self {
+    return self::create(
+      $entry['indexName'],
+      !empty($entry['mappings']) ? MappingFactory::fromArray($entry['mappings']) : NULL,
+      !empty($entry['analysis']['analyzer']) ? array_map(fn($a) => Analyzer::fromArray($a), $entry['analysis']['analyzer']) : [],
+      !empty($entry['analysis']['tokenizer']) ? array_map(fn($t) => Tokenizer::fromArray($t), $entry['analysis']['tokenizer']) : [],
+      !empty($entry['analysis']['filter']) ? array_map(fn($f) => Filter::fromArray($f), $entry['analysis']['filter']) : [],
+      !empty($entry['analysis']['char_filter']) ? array_map(fn($cf) => CharFilter::fromArray($cf), $entry['analysis']['char_filter']) : [],
+      !empty($entry['analysis']['normalizer']) ? array_map(fn($n) => Normalizer::fromArray($n), $entry['analysis']['normalizer']) : [],
+      !empty($entry['similarities']) ? array_map(fn($s) => Similarity::fromArray($s), $entry['similarities']) : [],
+      $entry['options'] ?? []
+    );
+  }
+
+  public function toArray(): array
+  {
+    return [
+      'indexName' => $this->indexName,
+      'mappings' => $this->mappings,
+      'similarities' => $this->similarity,
+      'analysis' => $this->analysis,
+      'options' => [
+        'number_of_shards' => $this->numberOfShards,
+        'codec' => $this->codec,
+        'store_type' => $this->storeType,
+        'number_of_replicas' => $this->numberOfReplicas,
+        'auto_expand_replicas' => $this->autoExpandReplicas,
+        'refresh_interval' => $this->refreshInterval,
+        'max_result_window' => $this->maxResultWindow,
+        'max_docvalue_fields_search' => $this->maxDocvalueFieldsSearch,
+        'max_script_fields' => $this->maxScriptFields,
+        'max_ngram_diff' => $this->maxNgramDiff,
+        'max_terms_count' => $this->maxTermsCount,
+        'max_regex_length' => $this->maxRegexLength,
+        'gc_deletes' => $this->gcDeletes,
+        'priority' => $this->priority,
+        'mapping_total_fields_limit' => $this->mappingTotalFieldsLimit,
+        'mapping_depth_limit' => $this->mappingDepthLimit,
+        'mapping_nested_fields_limit' => $this->mappingNestedFieldsLimit,
+        'mapping_nested_objects_limit' => $this->mappingNestedObjectsLimit,
+        'mapping_field_name_length_limit' => $this->mappingFieldNameLengthLimit,
+      ],
+    ];
+  }
+
   /**
    * Saves the index configuration and creates the index in Elasticsearch.
    * @return void
    */
-  public function save()
+  public function save(): void
   {
-    // todo: implement config save
-    // todo: implement index creation in ES
+    $indices = $this->configFactory->getIndices();
+    $indices[$this->indexName] = $this->toArray();
+
+    $this->configFactory->set('etic:indices', $indices);
   }
 
   /**
@@ -290,12 +356,7 @@ class EIndexFactory
    */
   private function _setMappings(?MappingFactory $mappingFactory): void
   {
-    $this->mappings = $mappingFactory ? $mappingFactory->toArray() : [];
-  }
-
-  public function toArray(): array
-  {
-    // todo: format the index to array
+    $this->mappings = $mappingFactory ? $mappingFactory->toArray()['mappings'] : [];
   }
 
   /**

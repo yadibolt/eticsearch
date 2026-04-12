@@ -2,6 +2,7 @@
 
 namespace Drupal\eticsearch\Factory;
 
+use Drupal;
 use InvalidArgumentException;
 
 class Filter
@@ -17,6 +18,7 @@ class Filter
     public const array SYNONYM_FORMATS = ['solr', 'wordnet'];
     public const array EDGE_NGRAM_SIDES = ['front', 'back'];
 
+    private ConfigFactory $configFactory;
     private string $name = 'token_filter';
     private string $type = 'stop';
     private string|array $stopwords = '_english_';
@@ -76,6 +78,7 @@ class Filter
 
     public function __construct()
     {
+        $this->configFactory = Drupal::service('eticsearch.factory.config');
     }
 
     public static function create(string  $name, string $type, string|array $stopwords = '_english_', ?string $stopwordsPath = NULL, bool $ignoreCase = FALSE,
@@ -157,15 +160,108 @@ class Filter
         return $instance;
     }
 
-    public static function load(string $indexName, string $filterName): ?self
+    public static function load(string $retrieval = 'single', ?string $filterName = NULL): NULL|array|self
     {
-        // todo: return instantiated index factory from the config or null if does not exists
+        if (!in_array($retrieval, ['single', 'all'], TRUE)) {
+            throw new InvalidArgumentException('load only accepts retrieval as one of: single, all');
+        }
+
+        if ($retrieval === 'all') {
+            /** @var ConfigFactory $configService */
+            $configService = Drupal::service('eticsearch.factory.config');
+            $filters = $configService->getFilters();
+
+            return array_map(fn($f) => self::fromArray($f), $filters);
+        }
+
+        if ($filterName === NULL) {
+            throw new InvalidArgumentException('load with retrieval single requires a filter name');
+        }
+
+        /** @var ConfigFactory $configService */
+        $configService = Drupal::service('eticsearch.factory.config');
+        if (($filter = $configService->getFilters()[$filterName] ?? NULL) !== NULL) {
+            return self::fromArray($filter);
+        }
+
+        return NULL;
     }
 
-    public static function delete(string $indexName, string $filterName): bool
+    public static function delete(string $filterName): bool
     {
-        // todo: implement config delete
-        // todo: implement index deletion in ES
+        /** @var ConfigFactory $configService */
+        $configService = Drupal::service('eticsearch.factory.config');
+
+        // we cannot delete the filter if some index is using it
+        $indices = $configService->getIndices();
+        foreach ($indices as $index) {
+            if (in_array($filterName, $index['filters'] ?? [], TRUE)) {
+                return FALSE;
+            }
+        }
+
+        return $configService->deleteFilter($filterName);
+    }
+
+    public static function fromArray(array $entry): self {
+        return self::create(
+            $entry['name'] ?? 'token_filter',
+            $entry['type'] ?? 'stop',
+            $entry['stopwords'] ?? '_english_',
+            $entry['stopwords_path'] ?? NULL,
+            $entry['ignore_case'] ?? FALSE,
+            $entry['remove_trailing'] ?? TRUE,
+            $entry['synonyms'] ?? [],
+            $entry['synonyms_path'] ?? NULL,
+            $entry['format'] ?? 'solr',
+            $entry['lenient'] ?? FALSE,
+            $entry['analyzer'] ?? NULL,
+            $entry['expand'] ?? TRUE,
+            $entry['language'] ?? 'english',
+            $entry['min_gram'] ?? 1,
+            $entry['max_gram'] ?? 2,
+            $entry['preserve_original'] ?? FALSE,
+            $entry['side'] ?? 'front',
+            $entry['max_shingle_size'] ?? 2,
+            $entry['min_shingle_size'] ?? 2,
+            $entry['output_unigrams'] ?? TRUE,
+            $entry['output_unigrams_if_no_shingles'] ?? FALSE,
+            $entry['token_separator'] ?? ' ',
+            $entry['filler_token'] ?? '_',
+            $entry['generate_word_parts'] ?? TRUE,
+            $entry['generate_number_parts'] ?? TRUE,
+            $entry['catenate_words'] ?? FALSE,
+            $entry['catenate_numbers'] ?? FALSE,
+            $entry['catenate_all'] ?? FALSE,
+            $entry['split_on_case_change'] ?? TRUE,
+            $entry['split_on_numerics'] ?? TRUE,
+            $entry['stem_english_possessive'] ?? TRUE,
+            $entry['protected_words'] ?? [],
+            $entry['protected_words_path'] ?? NULL,
+            $entry['type_table'] ?? [],
+            $entry['type_table_path'] ?? NULL,
+            $entry['adjust_offsets'] ?? TRUE,
+            $entry['min'] ?? 0,
+            $entry['max'] ?? 2147483647,
+            $entry['truncate_length'] ?? 10,
+            $entry['max_token_count'] ?? 1,
+            $entry['consume_all_tokens'] ?? FALSE,
+            $entry['pattern'] ?? NULL,
+            $entry['replacement'] ?? '',
+            $entry['flags'] ?? NULL,
+            $entry['all'] ?? TRUE,
+            $entry['patterns'] ?? [],
+            $entry['keywords'] ?? [],
+            $entry['keywords_path'] ?? NULL,
+            $entry['keywords_pattern'] ?? NULL,
+            $entry['articles'] ?? [],
+            $entry['articles_path'] ?? NULL,
+            $entry['articles_case'] ?? FALSE,
+            $entry['multiplexer_filters'] ?? [],
+            $entry['condition_filter'] ?? [],
+            $entry['script'] ?? NULL,
+            $entry['only_on_same_position'] ?? FALSE,
+        );
     }
 
     /**
@@ -176,6 +272,7 @@ class Filter
     public function toArray(): array
     {
         $props = [
+            'name' => $this->name,
             'type' => $this->type,
         ];
 
@@ -312,10 +409,12 @@ class Filter
         return $props;
     }
 
-    public function save()
+    public function save(): void
     {
-        // todo: implement config save
-        // todo: implement index creation in ES
+        $filters = $this->configFactory->getFilters();
+        $filters[$this->name] = $this->toArray();
+
+        $this->configFactory->set('etic:filters', $filters);
     }
 
     private function _setName(string $name): void

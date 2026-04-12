@@ -2,6 +2,7 @@
 
 namespace Drupal\eticsearch\Factory;
 
+use Drupal;
 use InvalidArgumentException;
 
 class Similarity
@@ -16,6 +17,7 @@ class Similarity
   public const array IB_LAMBDAS = ['df', 'ttf'];
   public const array DFI_MEASURES = ['standardized', 'saturated', 'chisquared'];
 
+  private ConfigFactory $configFactory;
   private string $name = 'similarity';
   private string $type = 'BM25';
   private float $k1 = 1.2;
@@ -39,6 +41,7 @@ class Similarity
 
   public function __construct()
   {
+    $this->configFactory = Drupal::service('eticsearch.factory.config');
   }
 
   public static function create(string $name, string $type, float $k1 = 1.2, float $b = 0.75, bool $discountOverlaps = TRUE, string $basicModel = 'g',
@@ -77,15 +80,72 @@ class Similarity
     return $instance;
   }
 
-  public static function load(string $indexName, string $similarityName): ?self
+  public static function load(string $retrieval = 'single', ?string $similarityName = NULL): NULL|array|self
   {
-    // todo: return instantiated index factory from the config or null if does not exists
+    if (!in_array($retrieval, ['single', 'all'], TRUE)) {
+      throw new InvalidArgumentException('load only accepts retrieval as one of: single, all');
+    }
+
+    if ($retrieval === 'all') {
+      /** @var ConfigFactory $configService */
+      $configService = Drupal::service('eticsearch.factory.config');
+      $similarities = $configService->getSimilarities();
+
+      return array_map(fn($s) => self::fromArray($s), $similarities);
+    }
+
+    if ($similarityName === NULL) {
+      throw new InvalidArgumentException('load with retrieval single requires a similarity name');
+    }
+
+    /** @var ConfigFactory $configService */
+    $configService = Drupal::service('eticsearch.factory.config');
+    if (($similarity = $configService->getSimilarities()[$similarityName] ?? NULL) !== NULL) {
+      return self::fromArray($similarity);
+    }
+
+    return NULL;
   }
 
-  public static function delete(string $indexName, string $similarityName): bool
+  public static function delete(string $similarityName): bool
   {
-    // todo: implement config delete
-    // todo: implement index deletion in ES
+    /** @var ConfigFactory $configService */
+    $configService = Drupal::service('eticsearch.factory.config');
+
+    // we cannot delete the similarity if some index is using it
+    $indices = $configService->getIndices();
+    foreach ($indices as $index) {
+      if (in_array($similarityName, $index['similarities'] ?? [], TRUE)) {
+        return FALSE;
+      }
+    }
+
+    return $configService->deleteSimilarity($similarityName);
+  }
+
+  public static function fromArray(array $entry): self {
+    return self::create(
+      $entry['name'] ?? 'similarity',
+      $entry['type'] ?? 'BM25',
+      $entry['k1'] ?? 1.2,
+      $entry['b'] ?? 0.75,
+      $entry['discount_overlaps'] ?? TRUE,
+      $entry['basic_model'] ?? 'g',
+      $entry['after_effect'] ?? 'l',
+      $entry['normalization'] ?? 'h2',
+      $entry['normalization.h1.c'] ?? 1.0,
+      $entry['normalization.h2.c'] ?? 1.0,
+      $entry['normalization.h3.c'] ?? 800.0,
+      $entry['normalization.z.z'] ?? 0.3,
+      $entry['independence_measure'] ?? 'standardized',
+      $entry['distribution'] ?? 'll',
+      $entry['ib_lambda'] ?? 'df',
+      $entry['mu'] ?? 2000,
+      $entry['lambda'] ?? 0.1,
+      $entry['script'] ?? ['source' => NULL],
+      $entry['weight_script'] ?? NULL,
+      $entry['params'] ?? []
+    );
   }
 
   /**
@@ -96,6 +156,7 @@ class Similarity
   public function toArray(): array
   {
     $props = [
+      'name' => $this->name,
       'type' => $this->type,
     ];
 
@@ -150,10 +211,12 @@ class Similarity
     return $props;
   }
 
-  public function save()
+  public function save(): void
   {
-    // todo: implement config save
-    // todo: implement index creation in ES
+    $similarities = $this->configFactory->getSimilarities();
+    $similarities[$this->name] = $this->toArray();
+
+    $this->configFactory->set('etic:similarities', $similarities);
   }
 
   private function _setName(string $name): void

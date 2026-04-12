@@ -2,6 +2,7 @@
 
 namespace Drupal\eticsearch\Factory;
 
+use Drupal;
 use InvalidArgumentException;
 
 class Tokenizer
@@ -11,6 +12,7 @@ class Tokenizer
     'simple_pattern_split', 'char_group', 'path_hierarchy',
   ];
 
+  private ConfigFactory $configFactory;
   private string $name = 'tokenizer';
   private string $type = 'standard';
   private int $maxTokenLength = 255;
@@ -29,6 +31,7 @@ class Tokenizer
 
   public function __construct()
   {
+    $this->configFactory = Drupal::service('eticsearch.factory.config');
   }
 
   public static function create(string  $name, string $type, int $maxTokenLength = 255, int $minGram = 1, int $maxGram = 2, array $tokenChars = [],
@@ -61,15 +64,67 @@ class Tokenizer
     return $instance;
   }
 
-  public static function load(string $indexName, string $tokenizerName): ?self
+  public static function load(string $retrieval = 'single', ?string $tokenizerName = NULL): NULL|array|self
   {
-    // todo: return instantiated index factory from the config or null if does not exists
+    if (!in_array($retrieval, ['single', 'all'], TRUE)) {
+      throw new InvalidArgumentException('load only accepts retrieval as one of: single, all');
+    }
+
+    if ($retrieval === 'all') {
+      /** @var ConfigFactory $configService */
+      $configService = Drupal::service('eticsearch.factory.config');
+      $tokenizers = $configService->getTokenizers();
+
+      return array_map(fn($t) => self::fromArray($t), $tokenizers);
+    }
+
+    if ($tokenizerName === NULL) {
+      throw new InvalidArgumentException('load with retrieval single requires a tokenizer name');
+    }
+
+    /** @var ConfigFactory $configService */
+    $configService = Drupal::service('eticsearch.factory.config');
+    if (($tokenizer = $configService->getTokenizers()[$tokenizerName] ?? NULL) !== NULL) {
+      return self::fromArray($tokenizer);
+    }
+
+    return NULL;
   }
 
-  public static function delete(string $indexName, string $tokenizerName): bool
+  public static function delete(string $tokenizerName): bool
   {
-    // todo: implement config delete
-    // todo: implement index deletion in ES
+    /** @var ConfigFactory $configService */
+    $configService = Drupal::service('eticsearch.factory.config');
+
+    // we cannot delete the tokenizer if some index is using it
+    $indices = $configService->getIndices();
+    foreach ($indices as $index) {
+      if (in_array($tokenizerName, $index['tokenizers'] ?? [], TRUE)) {
+        return FALSE;
+      }
+    }
+
+    return $configService->deleteTokenizer($tokenizerName);
+  }
+
+  public static function fromArray(array $entry): self {
+    return self::create(
+      $entry['name'] ?? 'tokenizer',
+      $entry['type'] ?? 'standard',
+      $entry['max_token_length'] ?? 255,
+      $entry['min_gram'] ?? 1,
+      $entry['max_gram'] ?? 2,
+      $entry['token_chars'] ?? [],
+      $entry['custom_token_chars'] ?? NULL,
+      $entry['pattern'] ?? '\W+',
+      $entry['flags'] ?? NULL,
+      $entry['group'] ?? -1,
+      $entry['tokenize_on_chars'] ?? [],
+      $entry['delimiter'] ?? '/',
+      $entry['replacement'] ?? '/',
+      $entry['skip'] ?? 0,
+      $entry['reverse'] ?? FALSE
+    );
   }
 
   /**
@@ -80,6 +135,7 @@ class Tokenizer
   public function toArray(): array
   {
     $props = [
+      'name' => $this->name,
       'type' => $this->type,
     ];
 
@@ -124,10 +180,12 @@ class Tokenizer
     return $props;
   }
 
-  public function save()
+  public function save(): void
   {
-    // todo: implement config save
-    // todo: implement index creation in ES
+    $tokenizers = $this->configFactory->getTokenizers();
+    $tokenizers[$this->name] = $this->toArray();
+
+    $this->configFactory->set('etic:tokenizers', $tokenizers);
   }
 
   private function _setName(string $name): void

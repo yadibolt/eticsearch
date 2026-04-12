@@ -2,6 +2,7 @@
 
 namespace Drupal\eticsearch\Factory;
 
+use Drupal;
 use InvalidArgumentException;
 
 class CharFilter
@@ -10,6 +11,7 @@ class CharFilter
     'html_strip', 'mapping', 'pattern_replace',
   ];
 
+  private ConfigFactory $configFactory;
   private string $name = 'char_filter';
   private string $type = 'html_strip';
   private array $escapedTags = [];
@@ -21,6 +23,7 @@ class CharFilter
 
   public function __construct()
   {
+    $this->configFactory = Drupal::service('eticsearch.factory.config');
   }
 
   public static function create(string  $name, string $type, array $escapedTags = [], array $mappings = [], ?string $mappingsPath = NULL,
@@ -91,15 +94,60 @@ class CharFilter
     $this->flags = $flags;
   }
 
-  public static function load(string $indexName, string $charFilterName): ?self
+  public static function load(string $retrieval = 'single', ?string $charFilterName = NULL): NULL|array|self
   {
-    // todo: return instantiated index factory from the config or null if does not exists
+    if (!in_array($retrieval, ['single', 'all'], TRUE)) {
+      throw new InvalidArgumentException('load only accepts retrieval as one of: single, all');
+    }
+
+    if ($retrieval === 'all') {
+      /** @var ConfigFactory $configService */
+      $configService = Drupal::service('eticsearch.factory.config');
+      $charFilters = $configService->getCharFilters();
+
+      return array_map(fn($cf) => self::fromArray($cf), $charFilters);
+    }
+
+    if ($charFilterName === NULL) {
+      throw new InvalidArgumentException('load with retrieval single requires a char filter name');
+    }
+
+    /** @var ConfigFactory $configService */
+    $configService = Drupal::service('eticsearch.factory.config');
+    if (($charFilter = $configService->getCharFilters()[$charFilterName] ?? NULL) !== NULL) {
+      return self::fromArray($charFilter);
+    }
+
+    return NULL;
   }
 
-  public static function delete(string $indexName, string $charFilterName): bool
+  public static function delete(string $charFilterName): bool
   {
-    // todo: implement config delete
-    // todo: implement index deletion in ES
+    /** @var ConfigFactory $configService */
+    $configService = Drupal::service('eticsearch.factory.config');
+
+    // we cannot delete the filter if some index is using it
+    $indices = $configService->getIndices();
+    foreach ($indices as $index) {
+      if (in_array($charFilterName, $index['char_filters'] ?? [], TRUE)) {
+        return FALSE;
+      }
+    }
+
+    return $configService->deleteCharFilter($charFilterName);
+  }
+
+  public static function fromArray(array $entry): self {
+    return self::create(
+      $entry['name'] ?? 'char_filter',
+      $entry['type'] ?? 'html_strip',
+      $entry['escaped_tags'] ?? [],
+      $entry['mappings'] ?? [],
+      $entry['mappings_path'] ?? NULL,
+      $entry['pattern'] ?? NULL,
+      $entry['replacement'] ?? '',
+      $entry['flags'] ?? NULL
+    );
   }
 
   /**
@@ -110,6 +158,7 @@ class CharFilter
   public function toArray(): array
   {
     $props = [
+      'name' => $this->name,
       'type' => $this->type,
     ];
 
@@ -136,10 +185,12 @@ class CharFilter
     return $props;
   }
 
-  public function save()
+  public function save(): void
   {
-    // todo: implement config save
-    // todo: implement index creation in ES
+    $charFilters = $this->configFactory->getCharFilters();
+    $charFilters[$this->name] = $this->toArray();
+
+    $this->configFactory->set('etic:char_filters', $charFilters);
   }
 
   public function getName(): string
