@@ -84,6 +84,13 @@ class MappingFactory
 
   private function _setProperties(array $fields): void
   {
-    $this->properties = $fields;
+    // because fields are passed as array of map, we need to merge them into one map
+    $mergedFields = [];
+    foreach ($fields as $idx => $field) {
+      $fieldName = array_key_first($field);
+      $mergedFields[$fieldName] = $field[$fieldName];
+    }
+
+    $this->properties = $mergedFields;
   }
 }

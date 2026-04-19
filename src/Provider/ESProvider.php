@@ -29,45 +29,41 @@ class ESProvider
 
   public function __construct() {
     $this->configFactory = Drupal::service('eticsearch.factory.config');
-  }
+    $config = $this->configFactory->get();
 
-  public static function create(): self {
-    $instance = new self();
-    $config = $instance->configFactory->get();
-
-    $instance->host = $config['es:host'] ?? $instance->host;
-    $instance->port = $config['es:port'] ?? $instance->port;
-    $instance->authMethod = $config['es:auth_method'] ?? $instance->authMethod;
-    $instance->username = $config['es:username'] ?? $instance->username;
-    $instance->password = $config['es:password'] ?? $instance->password;
-    $instance->apiKeyID = $config['es:api_key_id'] ?? $instance->apiKeyID;
-    $instance->apiKeySecret = $config['es:api_key_secret'] ?? $instance->apiKeySecret;
-    $instance->verifySSL = $config['es:verify_ssl'] ?? $instance->verifySSL;
-    $instance->certificateAuthority = $config['es:ca_cert'] ?? $instance->certificateAuthority;
+    $this->host = $config['es:host'] ?? $this->host;
+    $this->port = $config['es:port'] ?? $this->port;
+    $this->authMethod = $config['es:auth_method'] ?? $this->authMethod;
+    $this->username = $config['es:username'] ?? $this->username;
+    $this->password = $config['es:password'] ?? $this->password;
+    $this->apiKeyID = $config['es:api_key_id'] ?? $this->apiKeyID;
+    $this->apiKeySecret = $config['es:api_key_secret'] ?? $this->apiKeySecret;
+    $this->verifySSL = $config['es:verify_ssl'] ?? $this->verifySSL;
+    $this->certificateAuthority = $config['es:ca_cert'] ?? $this->certificateAuthority;
 
     $clientBuilder = ClientBuilder::create();
 
     // set host
-    $fullHost = rtrim($instance->host, '/') . ':' . $instance->port;
+    $fullHost = rtrim($this->host, '/') . ':' . $this->port;
     $clientBuilder->setHosts([$fullHost]);
 
     // set auth method depending on the params
-    $mClientBuilder = match ($instance->authMethod) {
-      'basic' => $clientBuilder->setBasicAuthentication($instance->username, $instance->password),
-      'api_key' => $clientBuilder->setApiKey($instance->apiKeySecret, $instance->apiKeyID),
+    $mClientBuilder = match ($this->authMethod) {
+      'basic' => $clientBuilder->setBasicAuthentication($this->username, $this->password),
+      'api_key' => $clientBuilder->setApiKey($this->apiKeySecret, $this->apiKeyID),
       'none' => $clientBuilder,
       default => NULL,
     };
 
     if ($mClientBuilder === NULL) {
-      throw new InvalidArgumentException('Invalid authentication method: ' . $instance->authMethod);
+      throw new InvalidArgumentException('Invalid authentication method: ' . $this->authMethod);
     }
 
     // set either SSL verification or CA certificate
-    if (!$instance->verifySSL) {
+    if (!$this->verifySSL) {
       $clientBuilder->setSSLVerification(FALSE);
-    } elseif ($instance->certificateAuthority) {
-      $clientBuilder->setSSLVerification($instance->certificateAuthority);
+    } elseif ($this->certificateAuthority) {
+      $clientBuilder->setSSLVerification($this->certificateAuthority);
     } else {
       $clientBuilder->setSSLVerification(TRUE);
     }
@@ -75,12 +71,10 @@ class ESProvider
     // try to build a client - we do not throw exceptions
     // instead we set the client to NULL
     try {
-      $instance->esClient = $clientBuilder->build();
+      $this->esClient = $clientBuilder->build();
     } catch (AuthenticationException $e) {
       throw new RuntimeException('Failed to authenticate with Elasticsearch: ' . $e->getMessage());
     }
-
-    return $instance;
   }
 
   public function connect(): bool|Client {

@@ -2,6 +2,9 @@
 
 namespace Drupal\eticsearch\Factory;
 
+use Drupal\eticsearch\Analyzer;
+use Drupal\eticsearch\Normalizer;
+use Drupal\eticsearch\Similarity;
 use InvalidArgumentException;
 
 class FieldFactory
@@ -18,7 +21,7 @@ class FieldFactory
   public const array GEO_TYPES = ['geo_point', 'geo_shape'];
   public const array OTHER_TYPES = ['completion'];
 
-  public static function createTextField(string $type, ?Analyzer $analyzer = NULL, ?Analyzer $searchAnalyzer = NULL, ?Analyzer $searchQuoteAnalyzer = NULL,
+  public static function createTextField(string $fieldName, string $type, ?Analyzer $analyzer = NULL, ?Analyzer $searchAnalyzer = NULL, ?Analyzer $searchQuoteAnalyzer = NULL,
                                          ?Similarity $similarity = NULL, bool $index = TRUE, bool $norms = FALSE, array $indexPrefixes = [], bool $indexPhrases = FALSE,
                                          array $fields = []): array
   {
@@ -52,18 +55,28 @@ class FieldFactory
       }
     }
 
-    // we just add fields without validation
-    if (!empty($fields)) $props['fields'] = $fields;
+    if (!empty($fields)) {
+      // because fields are passed as array of map, we need to merge them into one map
+      $mergedFields = [];
+      foreach ($fields as $idx => $field) {
+        $subFieldName = array_key_first($field);
+        $mergedFields[$subFieldName] = $field[$subFieldName];
+      }
+
+      $props['fields'] = $mergedFields;
+    }
 
     // unset the fields for 'match_only_text' type as they are not allowed
     if ($type === 'match_only_text') {
       unset($props['norms'], $props['index_prefixes'], $props['index_phrases'], $props['similarity']);
     }
 
-    return $props;
+    return [
+      $fieldName => $props
+    ];
   }
 
-  public static function createKeywordField(string $type, ?Normalizer $normalizer = NULL, ?Similarity $similarity = NULL, bool $norms = FALSE,
+  public static function createKeywordField(string $fieldName, string $type, ?Normalizer $normalizer = NULL, ?Similarity $similarity = NULL, bool $norms = FALSE,
                                             bool   $splitQueriesOnWhitespace = FALSE, mixed $nullValue = NULL, array $fields = []): array
   {
     if (!in_array($type, self::KEYWORD_TYPES, TRUE)) {
@@ -82,17 +95,27 @@ class FieldFactory
     if ($similarity) $props['similarity'] = $similarity->getName();
     if ($nullValue !== NULL) $props['null_value'] = $nullValue;
 
-    // we just add fields without validation
-    if (!empty($fields)) $props['fields'] = $fields;
+    if (!empty($fields)) {
+      // because fields are passed as array of map, we need to merge them into one map
+      $mergedFields = [];
+      foreach ($fields as $idx => $field) {
+        $subFieldName = array_key_first($field);
+        $mergedFields[$subFieldName] = $field[$subFieldName];
+      }
+
+      $props['fields'] = $mergedFields;
+    }
 
     if ($type === 'wildcard') {
       unset($props['norms'], $props['normalizer'], $props['split_queries_on_whitespace'], $props['similarity']);
     }
 
-    return $props;
+    return [
+      $fieldName => $props
+    ];
   }
 
-  public static function createNumericField(string $type, bool $index = TRUE, bool $coerce = TRUE, mixed $nullValue = NULL, array $fields = []): array
+  public static function createNumericField(string $fieldName, string $type, bool $index = TRUE, bool $coerce = TRUE, mixed $nullValue = NULL, array $fields = []): array
   {
     if (!in_array($type, self::NUMERIC_TYPES, TRUE)) {
       throw new InvalidArgumentException(
@@ -108,17 +131,27 @@ class FieldFactory
 
     if ($nullValue !== NULL) $props['null_value'] = $nullValue;
 
-    // we just add fields without validation
-    if (!empty($fields)) $props['fields'] = $fields;
+    if (!empty($fields)) {
+      // because fields are passed as array of map, we need to merge them into one map
+      $mergedFields = [];
+      foreach ($fields as $idx => $field) {
+        $subFieldName = array_key_first($field);
+        $mergedFields[$subFieldName] = $field[$subFieldName];
+      }
+
+      $props['fields'] = $mergedFields;
+    }
 
     if ($type === 'unsigned_long') {
       unset($props['coerce']);
     }
 
-    return $props;
+    return [
+      $fieldName => $props
+    ];
   }
 
-  public static function createDateField(string $type, bool $index = TRUE, mixed $nullValue = NULL, array $fields = []): array
+  public static function createDateField(string $fieldName, string $type, bool $index = TRUE, mixed $nullValue = NULL, array $fields = []): array
   {
     if (!in_array($type, self::DATE_TYPES, TRUE)) {
       throw new InvalidArgumentException(
@@ -134,13 +167,23 @@ class FieldFactory
 
     if ($nullValue !== NULL) $props['null_value'] = $nullValue;
 
-    // we just add fields without validation
-    if (!empty($fields)) $props['fields'] = $fields;
+    if (!empty($fields)) {
+      // because fields are passed as array of map, we need to merge them into one map
+      $mergedFields = [];
+      foreach ($fields as $idx => $field) {
+        $subFieldName = array_key_first($field);
+        $mergedFields[$subFieldName] = $field[$subFieldName];
+      }
 
-    return $props;
+      $props['fields'] = $mergedFields;
+    }
+
+    return [
+      $fieldName => $props
+    ];
   }
 
-  public static function createBooleanField(string $type, bool $index = TRUE, mixed $nullValue = NULL, array $fields = []): array
+  public static function createBooleanField(string $fieldName, string $type, bool $index = TRUE, mixed $nullValue = NULL, array $fields = []): array
   {
     if (!in_array($type, self::BOOLEAN_TYPES, TRUE)) {
       throw new InvalidArgumentException(
@@ -155,13 +198,23 @@ class FieldFactory
 
     if ($nullValue !== NULL) $props['null_value'] = $nullValue;
 
-    // we just add fields without validation
-    if (!empty($fields)) $props['fields'] = $fields;
+    if (!empty($fields)) {
+      // because fields are passed as array of map, we need to merge them into one map
+      $mergedFields = [];
+      foreach ($fields as $idx => $field) {
+        $subFieldName = array_key_first($field);
+        $mergedFields[$subFieldName] = $field[$subFieldName];
+      }
 
-    return $props;
+      $props['fields'] = $mergedFields;
+    }
+
+    return [
+      $fieldName => $props
+    ];
   }
 
-  public static function createBinaryField(string $type): array
+  public static function createBinaryField(string $fieldName, string $type): array
   {
     if (!in_array($type, self::BINARY_TYPES, TRUE)) {
       throw new InvalidArgumentException(
@@ -170,11 +223,13 @@ class FieldFactory
     }
 
     return [
-      'type' => $type,
+      $fieldName => [
+        'type' => $type,
+      ]
     ];
   }
 
-  public static function createRangeField(string $type, bool $index = TRUE): array
+  public static function createRangeField(string $fieldName, string $type, bool $index = TRUE): array
   {
     if (!in_array($type, self::RANGE_TYPES, TRUE)) {
       throw new InvalidArgumentException(
@@ -189,10 +244,12 @@ class FieldFactory
 
     if ($type === 'date_range') $props['format'] = 'strict_date_optional_time||epoch_millis';
 
-    return $props;
+    return [
+      $fieldName => $props
+    ];
   }
 
-  public static function createGeoField(string $type, bool $index = TRUE, bool $coerce = TRUE, mixed $nullValue = NULL): array
+  public static function createGeoField(string $fieldName, string $type, bool $index = TRUE, bool $coerce = TRUE, mixed $nullValue = NULL): array
   {
     if (!in_array($type, self::GEO_TYPES, TRUE)) {
       throw new InvalidArgumentException(
@@ -208,10 +265,12 @@ class FieldFactory
     if ($type === 'geo_point' && $nullValue !== NULL) $props['null_value'] = $nullValue;
     if ($type === 'geo_shape') $props['coerce'] = $coerce;
 
-    return $props;
+    return [
+      $fieldName => $props
+    ];
   }
 
-  public static function createOtherField(string $type, ?Analyzer $analyzer = NULL, ?Analyzer $searchAnalyzer = NULL, bool $preserveSeparators = TRUE, bool $preservePositionIncrements = TRUE, int $maxInputLength = 50): array
+  public static function createOtherField(string $fieldName, string $type, ?Analyzer $analyzer = NULL, ?Analyzer $searchAnalyzer = NULL, bool $preserveSeparators = TRUE, bool $preservePositionIncrements = TRUE, int $maxInputLength = 50, array $fields = []): array
   {
     if (!in_array($type, self::OTHER_TYPES, TRUE)) {
       throw new InvalidArgumentException(
@@ -231,6 +290,19 @@ class FieldFactory
       $props['max_input_length'] = $maxInputLength;
     }
 
-    return $props;
+    if (!empty($fields)) {
+      // because fields are passed as array of map, we need to merge them into one map
+      $mergedFields = [];
+      foreach ($fields as $idx => $field) {
+        $subFieldName = array_key_first($field);
+        $mergedFields[$subFieldName] = $field[$subFieldName];
+      }
+
+      $props['fields'] = $mergedFields;
+    }
+
+    return [
+      $fieldName => $props
+    ];
   }
 }

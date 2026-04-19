@@ -3,6 +3,7 @@
 namespace Drupal\eticsearch;
 
 use Drupal;
+use Drupal\eticsearch\Factory\ConfigFactory;
 use InvalidArgumentException;
 
 class Filter
@@ -12,7 +13,7 @@ class Filter
         'ngram', 'edge_ngram', 'shingle', 'word_delimiter', 'word_delimiter_graph',
         'length', 'truncate', 'limit', 'pattern_replace', 'pattern_capture',
         'keyword_marker', 'elision', 'multiplexer', 'condition', 'unique',
-        'predicate_token_filter',
+        'predicate_token_filter', 'asciifolding', 'lowercase', 'uppercase',
     ];
 
     public const array SYNONYM_FORMATS = ['solr', 'wordnet'];
@@ -399,6 +400,10 @@ class Filter
                 break;
             case 'predicate_token_filter':
                 if ($this->script !== NULL) $props['script'] = $this->script;
+                break;
+            case 'asciifolding':
+            case 'lowercase':
+            case 'uppercase':
                 break;
             default:
                 throw new InvalidArgumentException(

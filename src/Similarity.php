@@ -3,6 +3,7 @@
 namespace Drupal\eticsearch;
 
 use Drupal;
+use Drupal\eticsearch\Factory\ConfigFactory;
 use InvalidArgumentException;
 
 class Similarity

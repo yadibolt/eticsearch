@@ -7,7 +7,7 @@ services:
   eticsearch.provider.elasticsearch:
     class: Drupal\eticsearch\Provider\ESProvider
 
-  eticsearch.factory.index:
+  eticsearch.factory.index: #remove
     class: Drupal\eticsearch\Factory\IndexFactory
     arguments:
       - '@eticsearch.provider.elasticsearch'

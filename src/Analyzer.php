@@ -3,6 +3,7 @@
 namespace Drupal\eticsearch;
 
 use Drupal;
+use Drupal\eticsearch\Factory\ConfigFactory;
 use InvalidArgumentException;
 
 class Analyzer
@@ -186,7 +187,7 @@ class Analyzer
     return $props;
   }
 
-  public function save()
+  public function save(): void
   {
     $analyzers = $this->configFactory->getAnalyzers();
     $analyzers[$this->name] = $this->toArray();

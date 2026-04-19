@@ -103,7 +103,8 @@ class IndexFactory
                                 array  $filters = [], array $charFilters = [], array $normalizers = [], array $similarities = [],
                                 array  $options = []): self
   {
-    $instance = new self();
+    $esProvider = Drupal::service('eticsearch.provider.elasticsearch');
+    $instance = new self($esProvider);
     $instance->_setIndexName($indexName);
     $instance->_setMappings($mappingFactory);
 
@@ -813,7 +814,28 @@ class IndexFactory
    */
   public static function delete(string $indexName): bool
   {
-    // todo: implement config delete
-    // todo: implement index deletion in ES
+    /** @var ESProvider $esProvider */
+    $esProvider = Drupal::service('eticsearch.provider.elasticsearch');
+    /** @var ConfigFactory $configService */
+    $configService = Drupal::service('eticsearch.factory.config');
+
+    try {
+      $client = $esProvider->connect();
+      if ($client !== FALSE) {
+        $exists = $client->indices()->exists(['index' => $indexName])->asBool();
+        if ($exists) {
+          $client->indices()->delete(['index' => $indexName]);
+        }
+      }
+
+      $indices = $configService->getIndices();
+      unset($indices[$indexName]);
+      $configService->set('etic:indices', $indices);
+    } catch (ClientResponseException|MissingParameterException|ServerResponseException $e) {
+      Logger::send($e->getMessage(), [], 'error');
+      return FALSE;
+    }
+
+    return TRUE;
   }
 }

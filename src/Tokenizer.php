@@ -3,13 +3,14 @@
 namespace Drupal\eticsearch;
 
 use Drupal;
+use Drupal\eticsearch\Factory\ConfigFactory;
 use InvalidArgumentException;
 
 class Tokenizer
 {
   public const array CONFIGURABLE_TOKENIZER_TYPES = [
     'standard', 'ngram', 'edge_ngram', 'pattern', 'simple_pattern',
-    'simple_pattern_split', 'char_group', 'path_hierarchy',
+    'simple_pattern_split', 'char_group', 'path_hierarchy', 'keyword',
   ];
 
   private ConfigFactory $configFactory;
@@ -170,6 +171,8 @@ class Tokenizer
         $props['replacement'] = $this->replacement;
         $props['skip'] = $this->skip;
         $props['reverse'] = $this->reverse;
+        break;
+      case 'keyword':
         break;
       default:
         throw new InvalidArgumentException(
