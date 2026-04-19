@@ -1,16 +1,17 @@
 <?php
 
-namespace Drupal\eticsearch\Factory;
+namespace Drupal\eticsearch\Index\Factory;
 
 use Drupal;
-use Drupal\eticsearch\Analyzer;
-use Drupal\eticsearch\CharFilter;
-use Drupal\eticsearch\Filter;
+use Drupal\eticsearch\Factory\ConfigFactory;
+use Drupal\eticsearch\Index\Analyzer;
+use Drupal\eticsearch\Index\CharFilter;
+use Drupal\eticsearch\Index\Filter;
 use Drupal\eticsearch\Logger;
-use Drupal\eticsearch\Normalizer;
+use Drupal\eticsearch\Index\Normalizer;
 use Drupal\eticsearch\Provider\ESProvider;
-use Drupal\eticsearch\Similarity;
-use Drupal\eticsearch\Tokenizer;
+use Drupal\eticsearch\Index\Similarity;
+use Drupal\eticsearch\Index\Tokenizer;
 use Elastic\Elasticsearch\Exception\ClientResponseException;
 use Elastic\Elasticsearch\Exception\MissingParameterException;
 use Elastic\Elasticsearch\Exception\ServerResponseException;

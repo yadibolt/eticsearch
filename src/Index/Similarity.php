@@ -1,6 +1,6 @@
 <?php
 
-namespace Drupal\eticsearch;
+namespace Drupal\eticsearch\Index;
 
 use Drupal;
 use Drupal\eticsearch\Factory\ConfigFactory;

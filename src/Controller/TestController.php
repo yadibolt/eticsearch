@@ -4,13 +4,13 @@ namespace Drupal\eticsearch\Controller;
 
 use Drupal;
 use Drupal\Core\Controller\ControllerBase;
-use Drupal\eticsearch\Analyzer;
-use Drupal\eticsearch\CharFilter;
-use Drupal\eticsearch\Factory\FieldFactory;
-use Drupal\eticsearch\Factory\IndexFactory;
-use Drupal\eticsearch\Factory\MappingFactory;
-use Drupal\eticsearch\Filter;
-use Drupal\eticsearch\Tokenizer;
+use Drupal\eticsearch\Index\Analyzer;
+use Drupal\eticsearch\Index\CharFilter;
+use Drupal\eticsearch\Index\Factory\FieldFactory;
+use Drupal\eticsearch\Index\Factory\IndexFactory;
+use Drupal\eticsearch\Index\Factory\MappingFactory;
+use Drupal\eticsearch\Index\Filter;
+use Drupal\eticsearch\Index\Tokenizer;
 
 /**
  * Tests the Elasticsearch connection.

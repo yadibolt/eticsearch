@@ -1,10 +1,10 @@
 <?php
 
-namespace Drupal\eticsearch\Factory;
+namespace Drupal\eticsearch\Index\Factory;
 
-use Drupal\eticsearch\Analyzer;
-use Drupal\eticsearch\Normalizer;
-use Drupal\eticsearch\Similarity;
+use Drupal\eticsearch\Index\Analyzer;
+use Drupal\eticsearch\Index\Normalizer;
+use Drupal\eticsearch\Index\Similarity;
 use InvalidArgumentException;
 
 class FieldFactory
