@@ -22,6 +22,7 @@ class ConfigFactory
     'etic:tokenizers' => 'array',
     'etic:similarities' => 'array',
     'etic:indices' => 'array',
+    'etic:searches' => 'array',
     /* ElasticSearch Specific */
     'es:host' => 'string',
     'es:port' => 'integer',
@@ -61,6 +62,11 @@ class ConfigFactory
   public function getIndices(): array {
     $config = $this->configFactory->get(self::CONFIG_KEY);
     return $config->get('etic:indices') ?? [];
+  }
+
+  public function getSearches(): array {
+    $config = $this->configFactory->get(self::CONFIG_KEY);
+    return $config->get('etic:searches') ?? [];
   }
 
   public function getCharFilters(): array {

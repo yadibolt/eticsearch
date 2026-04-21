@@ -11,19 +11,19 @@ use Drupal\eticsearch\Index\Factory\IndexFactory;
 use Drupal\eticsearch\Index\Factory\MappingFactory;
 use Drupal\eticsearch\Index\Filter;
 use Drupal\eticsearch\Index\Tokenizer;
+use Drupal\eticsearch\Search\Factory\ClauseFactory;
+use Drupal\eticsearch\Search\Function\ScriptScoreFunction;
+use Drupal\eticsearch\Search\Query\BoolQuery;
+use Drupal\eticsearch\Search\Query\FunctionScoreQuery;
+use Drupal\eticsearch\Search\Factory\SearchFactory;
 
 /**
  * Tests the Elasticsearch connection.
  */
 class TestController extends ControllerBase {
   public static function test() {
-    self::createSample();
-
-    echo '-----';
-
-    $config = Drupal::service('eticsearch.factory.config')->getIndices()['test_index'];
-    var_dump($config);
-    die();
+    $q = SearchFactory::use('test_index', 'test_search', 'alibaba');
+    var_dump(json_encode($q, JSON_PRETTY_PRINT));
 
     return [];
   }
@@ -31,16 +31,13 @@ class TestController extends ControllerBase {
   public static function createSample() {
     IndexFactory::delete('test_index');
 
-    // Tokenizers
     $tokenizerStandard = Tokenizer::create('standard', 'standard');
     $tokenizerKeyword = Tokenizer::create('keyword', 'keyword');
 
-    // Built-in filters
     $filterAsciiFolding = Filter::create('asciifolding', 'asciifolding');
     $filterLowercase = Filter::create('lowercase', 'lowercase');
     $filterUnique = Filter::create('unique', 'unique');
 
-    // Custom stop words filter
     $filterStopWords = Filter::create(
       name: 'my_custom_stop_words_filter',
       type: 'stop',
@@ -62,7 +59,6 @@ class TestController extends ControllerBase {
     );
     $filterStopWords->save();
 
-    // Edge n-gram filter for autocomplete
     $filterWordNgrams = Filter::create(
       name: 'word_ngrams',
       type: 'edge_ngram',
@@ -71,11 +67,9 @@ class TestController extends ControllerBase {
     );
     $filterWordNgrams->save();
 
-    // Char filter that strips numbers before tokenisation
     $charFilterNumber = CharFilter::create('number_filter', 'pattern_replace', pattern: '\d+', replacement: '');
     $charFilterNumber->save();
 
-    // Analyzers (hunspell stemmer omitted)
     $analyzerSuggesterText = Analyzer::create(
       name: 'suggester_text',
       type: 'custom',
@@ -315,5 +309,65 @@ class TestController extends ControllerBase {
       ]
     );
     $index->save();
+  }
+
+  public static function createSampleSearch(int $limit = 20): array
+  {
+    $scriptSource = '_score * (doc["promotion_weight"].value > 0 ? doc["promotion_weight"].value : 1) * (doc["items_sold"].value > 0 ? doc["items_sold"].value * (doc["items_sold"].value * params.soldFactor) : 1) * (doc["stock_level"].value > 0 ? doc["stock_level"].value * params.stockFactor : 0)';
+
+    $innerBool = BoolQuery::create()
+      ->addShould(ClauseFactory::match('model', boost: 10000.0))
+      ->addShould(ClauseFactory::matchPhrasePrefix('title.exact', boost: 100.0))
+      ->addShould(ClauseFactory::matchPhrasePrefix('title_extended.exact', boost: 100.0))
+      ->addShould(ClauseFactory::matchPhrasePrefix('manufacturer.exact', boost: 95.0))
+      ->addShould(ClauseFactory::matchPhrasePrefix('attributes.exact', boost: 90.0))
+      ->addShould(ClauseFactory::matchPhrasePrefix('material_description.exact', boost: 85.0))
+      ->addShould(ClauseFactory::matchPhrasePrefix('protection_level.exact', boost: 80.0))
+      ->addShould(ClauseFactory::matchPhrasePrefix('material_description', boost: 75.0))
+      ->addShould(ClauseFactory::matchPhrase('title', boost: 70.0))
+      ->addShould(ClauseFactory::match('title.autocomplete', boost: 65.0))
+      ->addShould(ClauseFactory::match('title', boost: 60.0, fuzziness: 1))
+      ->addShould(ClauseFactory::matchPhrase('title_extended', boost: 70.0))
+      ->addShould(ClauseFactory::match('title_extended.autocomplete', boost: 65.0))
+      ->addShould(ClauseFactory::match('title_extended', boost: 60.0, fuzziness: 1))
+      ->addShould(ClauseFactory::match('manufacturer.autocomplete', boost: 55.0))
+      ->addShould(ClauseFactory::match('attributes.autocomplete', boost: 40.0))
+      ->addShould(ClauseFactory::match('material_description.autocomplete', boost: 35.0))
+      ->addShould(ClauseFactory::match('material_description', boost: 30.0))
+      ->addShould(ClauseFactory::matchPhrasePrefix('norms', boost: 25.0));
+
+    $outerBool = BoolQuery::create()
+      ->addMust($innerBool)
+      ->addFilter(ClauseFactory::range('price', gt: 0))
+      ->addFilter(ClauseFactory::range('stock_level', gt: 0))
+      ->addFilter(ClauseFactory::term('published', true))
+      ->addShould(ClauseFactory::matchPhrasePrefix('description', boost: 20.0))
+      ->addShould(ClauseFactory::matchPhrasePrefix('description.nondict', boost: 15.0))
+      ->addShould(ClauseFactory::matchPhrasePrefix('categories.title', boost: 10.0))
+      ->addShould(ClauseFactory::matchPhrasePrefix('categories.title.exact', boost: 5.0))
+      ->addShould(ClauseFactory::match('categories.title.autocomplete', boost: 2.0, fuzziness: 1))
+      ->addShould(ClauseFactory::match('categories.title', boost: 2.0))
+      ->addShould(ClauseFactory::match('description.autocomplete', fuzziness: 1))
+      ->addShould(ClauseFactory::match('description'))
+      ->addShould(ClauseFactory::match('description.nondict'));
+
+    $sf = SearchFactory::create('test_index', 'test_search', size: $limit)
+      ->setQuery(
+        FunctionScoreQuery::create(
+          $outerBool,
+          functions: [
+            ScriptScoreFunction::create($scriptSource, ['soldFactor' => 0.00001, 'stockFactor' => 0.0001]),
+          ],
+          scoreMode: 'multiply'
+        )
+      )
+      ->setCollapse('title.dedupe', innerHits: ['name' => 'parent', 'size' => 1])
+      ->addCompletionSuggest('completions', 'title_suggest', size: 5, options: ['skip_duplicates' => true, 'fuzzy' => ['fuzziness' => 1]])
+      ->addCompletionSuggest('completions_nondict', 'title_suggest.nondict', size: 5, options: ['skip_duplicates' => true, 'fuzzy' => ['fuzziness' => 1]])
+      ->setSource(['title', 'title_suggest', 'url', 'price', 'img_url', 'img_alt', 'model', 'categories', 'manufacturer', 'attributes']);
+
+    $sf->save();
+
+    return $sf->toArray();
   }
 }
