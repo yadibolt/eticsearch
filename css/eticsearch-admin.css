@@ -1,0 +1,43 @@
+.eticsearch-form-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  align-items: start;
+}
+
+.eticsearch-form-right {
+  position: sticky;
+  top: 1rem;
+}
+
+.eticsearch-json-preview {
+  background: #1e1e1e;
+  color: #d4d4d4;
+  border: 1px solid #444;
+  border-radius: 4px;
+  padding: 1rem;
+  overflow-x: auto;
+  overflow-y: auto;
+  max-height: 80vh;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 0.8rem;
+  line-height: 1.5;
+  white-space: pre;
+  margin: 0;
+}
+
+.eticsearch-json-preview-label {
+  font-weight: bold;
+  margin-bottom: 0.5rem;
+  display: block;
+}
+
+@media (max-width: 1024px) {
+  .eticsearch-form-columns {
+    grid-template-columns: 1fr;
+  }
+
+  .eticsearch-form-right {
+    position: static;
+  }
+}

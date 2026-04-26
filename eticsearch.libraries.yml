@@ -1,0 +1,5 @@
+admin_forms:
+  version: 1.x
+  css:
+    theme:
+      css/eticsearch-admin.css: {}

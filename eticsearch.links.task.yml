@@ -1,0 +1,92 @@
+eticsearch.tokenizer.list.tab:
+  title: 'List'
+  route_name: eticsearch.tokenizer.list
+  base_route: eticsearch.tokenizer.list
+  weight: 0
+
+eticsearch.tokenizer.add.tab:
+  title: 'Add Tokenizer'
+  route_name: eticsearch.tokenizer.add
+  base_route: eticsearch.tokenizer.list
+  weight: 1
+
+eticsearch.filter.list.tab:
+  title: 'List'
+  route_name: eticsearch.filter.list
+  base_route: eticsearch.filter.list
+  weight: 0
+
+eticsearch.filter.add.tab:
+  title: 'Add Filter'
+  route_name: eticsearch.filter.add
+  base_route: eticsearch.filter.list
+  weight: 1
+
+eticsearch.char_filter.list.tab:
+  title: 'List'
+  route_name: eticsearch.char_filter.list
+  base_route: eticsearch.char_filter.list
+  weight: 0
+
+eticsearch.char_filter.add.tab:
+  title: 'Add Character Filter'
+  route_name: eticsearch.char_filter.add
+  base_route: eticsearch.char_filter.list
+  weight: 1
+
+eticsearch.analyzer.list.tab:
+  title: 'List'
+  route_name: eticsearch.analyzer.list
+  base_route: eticsearch.analyzer.list
+  weight: 0
+
+eticsearch.analyzer.add.tab:
+  title: 'Add Analyzer'
+  route_name: eticsearch.analyzer.add
+  base_route: eticsearch.analyzer.list
+  weight: 1
+
+eticsearch.similarity.list.tab:
+  title: 'List'
+  route_name: eticsearch.similarity.list
+  base_route: eticsearch.similarity.list
+  weight: 0
+
+eticsearch.similarity.add.tab:
+  title: 'Add Similarity'
+  route_name: eticsearch.similarity.add
+  base_route: eticsearch.similarity.list
+  weight: 1
+
+# Index tabs
+eticsearch.index.list.tab:
+  title: 'List'
+  route_name: eticsearch.index.list
+  base_route: eticsearch.index.list
+  weight: 0
+
+eticsearch.index.add.tab:
+  title: 'Add Index'
+  route_name: eticsearch.index.add
+  base_route: eticsearch.index.list
+  weight: 1
+
+# Search tabs
+eticsearch.search.list.tab:
+  title: 'List'
+  route_name: eticsearch.search.list
+  base_route: eticsearch.search.list
+  weight: 0
+
+eticsearch.search.add.tab:
+  title: 'Add Search'
+  route_name: eticsearch.search.add
+  base_route: eticsearch.search.list
+  weight: 1
+
+# Field mapping tab
+eticsearch.field.list.tab:
+  title: 'List'
+  route_name: eticsearch.field.list
+  base_route: eticsearch.field.list
+  weight: 0

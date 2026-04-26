@@ -1,1 +1,13 @@
 <?php
+
+use Drupal\Core\Form\FormStateInterface;
+
+require_once 'src/Config/verticalTabs.php';
+
+function eticsearch_form_alter(array &$form, FormStateInterface $formState, string $formId): void
+{
+  match ($formId) {
+    'node_type_edit_form' => eticsearchContentTypeVerticalTabs($form, $formState, $formId),
+    default => NULL,
+  };
+}

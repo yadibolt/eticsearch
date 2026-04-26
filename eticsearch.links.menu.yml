@@ -1,0 +1,54 @@
+eticsearch.admin:
+  title: 'Eticsearch'
+  description: 'Manage Elasticsearch analysis components.'
+  route_name: eticsearch.analyzer.list
+  parent: system.admin_config_search
+  weight: 10
+
+eticsearch.analyzer.list:
+  title: 'Analyzers'
+  route_name: eticsearch.analyzer.list
+  parent: eticsearch.admin
+  weight: 1
+
+eticsearch.tokenizer.list:
+  title: 'Tokenizers'
+  route_name: eticsearch.tokenizer.list
+  parent: eticsearch.admin
+  weight: 2
+
+eticsearch.filter.list:
+  title: 'Filters'
+  route_name: eticsearch.filter.list
+  parent: eticsearch.admin
+  weight: 3
+
+eticsearch.char_filter.list:
+  title: 'Character Filters'
+  route_name: eticsearch.char_filter.list
+  parent: eticsearch.admin
+  weight: 4
+
+eticsearch.similarity.list:
+  title: 'Similarities'
+  route_name: eticsearch.similarity.list
+  parent: eticsearch.admin
+  weight: 5
+
+eticsearch.index.list:
+  title: 'Indices'
+  route_name: eticsearch.index.list
+  parent: eticsearch.admin
+  weight: 6
+
+eticsearch.search.list:
+  title: 'Searches'
+  route_name: eticsearch.search.list
+  parent: eticsearch.admin
+  weight: 7
+
+eticsearch.field.list:
+  title: 'Field Mappings'
+  route_name: eticsearch.field.list
+  parent: eticsearch.admin
+  weight: 8

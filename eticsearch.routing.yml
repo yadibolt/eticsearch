@@ -1,7 +1,269 @@
+# ── Index ─────────────────────────────────────────────────────────────────────
+
+eticsearch.index.list:
+  path: '/admin/config/search/eticsearch/index'
+  defaults:
+    _controller: '\Drupal\eticsearch\Controller\IndexListController::list'
+    _title: 'Indices'
+  requirements:
+    _permission: 'administer site configuration'
+
+eticsearch.index.add:
+  path: '/admin/config/search/eticsearch/index/add'
+  defaults:
+    _form: '\Drupal\eticsearch\Form\Analysis\NameForm'
+    _title: 'Add Index'
+    component: 'index'
+  requirements:
+    _permission: 'administer site configuration'
+
+eticsearch.index.edit:
+  path: '/admin/config/search/eticsearch/index/{name}/edit'
+  defaults:
+    _form: '\Drupal\eticsearch\Form\Index\IndexForm'
+    _title: 'Configure Index'
+  requirements:
+    _permission: 'administer site configuration'
+
+eticsearch.index.delete:
+  path: '/admin/config/search/eticsearch/index/{name}/delete'
+  defaults:
+    _form: '\Drupal\eticsearch\Form\Index\IndexDeleteForm'
+    _title: 'Delete Index'
+  requirements:
+    _permission: 'administer site configuration'
+
+# ── Search ────────────────────────────────────────────────────────────────────
+
+eticsearch.search.list:
+  path: '/admin/config/search/eticsearch/search'
+  defaults:
+    _controller: '\Drupal\eticsearch\Controller\SearchListController::list'
+    _title: 'Searches'
+  requirements:
+    _permission: 'administer site configuration'
+
+eticsearch.search.add:
+  path: '/admin/config/search/eticsearch/search/add'
+  defaults:
+    _form: '\Drupal\eticsearch\Form\Search\SearchNameForm'
+    _title: 'Add Search'
+  requirements:
+    _permission: 'administer site configuration'
+
+eticsearch.search.edit:
+  path: '/admin/config/search/eticsearch/search/{index_name}/{search_name}/edit'
+  defaults:
+    _form: '\Drupal\eticsearch\Form\Search\SearchForm'
+    _title: 'Configure Search'
+  requirements:
+    _permission: 'administer site configuration'
+
+eticsearch.search.delete:
+  path: '/admin/config/search/eticsearch/search/{index_name}/{search_name}/delete'
+  defaults:
+    _form: '\Drupal\eticsearch\Form\Search\SearchDeleteForm'
+    _title: 'Delete Search'
+  requirements:
+    _permission: 'administer site configuration'
+
+# ── Field Mappings ────────────────────────────────────────────────────────────
+
+eticsearch.field.list:
+  path: '/admin/config/search/eticsearch/field'
+  defaults:
+    _controller: '\Drupal\eticsearch\Controller\FieldListController::list'
+    _title: 'Field Mappings'
+  requirements:
+    _permission: 'administer site configuration'
+
+eticsearch.field.edit:
+  path: '/admin/config/search/eticsearch/field/{content_type}/{field_name}/edit'
+  defaults:
+    _form: '\Drupal\eticsearch\Form\Field\FieldConfigForm'
+    _title: 'Configure Field Mapping'
+  requirements:
+    _permission: 'administer site configuration'
+
 eticsearch.test_connection:
   path: '/admin/config/search/eticsearch/test'
   defaults:
     _controller: '\Drupal\eticsearch\Controller\TestController::test'
     _title: 'Test'
+  requirements:
+    _permission: 'administer site configuration'
+
+eticsearch.tokenizer.list:
+  path: '/admin/config/search/eticsearch/tokenizer'
+  defaults:
+    _controller: '\Drupal\eticsearch\Controller\AnalysisListController::list'
+    _title: 'Tokenizers'
+    component: 'tokenizer'
+  requirements:
+    _permission: 'administer site configuration'
+
+eticsearch.tokenizer.add:
+  path: '/admin/config/search/eticsearch/tokenizer/add'
+  defaults:
+    _form: '\Drupal\eticsearch\Form\Analysis\NameForm'
+    _title: 'Add Tokenizer'
+    component: 'tokenizer'
+  requirements:
+    _permission: 'administer site configuration'
+
+eticsearch.tokenizer.edit:
+  path: '/admin/config/search/eticsearch/tokenizer/{name}/edit'
+  defaults:
+    _form: '\Drupal\eticsearch\Form\Analysis\TokenizerForm'
+    _title: 'Configure Tokenizer'
+  requirements:
+    _permission: 'administer site configuration'
+
+eticsearch.tokenizer.delete:
+  path: '/admin/config/search/eticsearch/tokenizer/{name}/delete'
+  defaults:
+    _form: '\Drupal\eticsearch\Form\Analysis\DeleteForm'
+    _title: 'Delete Tokenizer'
+    component: 'tokenizer'
+  requirements:
+    _permission: 'administer site configuration'
+
+eticsearch.filter.list:
+  path: '/admin/config/search/eticsearch/filter'
+  defaults:
+    _controller: '\Drupal\eticsearch\Controller\AnalysisListController::list'
+    _title: 'Filters'
+    component: 'filter'
+  requirements:
+    _permission: 'administer site configuration'
+
+eticsearch.filter.add:
+  path: '/admin/config/search/eticsearch/filter/add'
+  defaults:
+    _form: '\Drupal\eticsearch\Form\Analysis\NameForm'
+    _title: 'Add Filter'
+    component: 'filter'
+  requirements:
+    _permission: 'administer site configuration'
+
+eticsearch.filter.edit:
+  path: '/admin/config/search/eticsearch/filter/{name}/edit'
+  defaults:
+    _form: '\Drupal\eticsearch\Form\Analysis\FilterForm'
+    _title: 'Configure Filter'
+  requirements:
+    _permission: 'administer site configuration'
+
+eticsearch.filter.delete:
+  path: '/admin/config/search/eticsearch/filter/{name}/delete'
+  defaults:
+    _form: '\Drupal\eticsearch\Form\Analysis\DeleteForm'
+    _title: 'Delete Filter'
+    component: 'filter'
+  requirements:
+    _permission: 'administer site configuration'
+
+eticsearch.char_filter.list:
+  path: '/admin/config/search/eticsearch/char-filter'
+  defaults:
+    _controller: '\Drupal\eticsearch\Controller\AnalysisListController::list'
+    _title: 'Character Filters'
+    component: 'char_filter'
+  requirements:
+    _permission: 'administer site configuration'
+
+eticsearch.char_filter.add:
+  path: '/admin/config/search/eticsearch/char-filter/add'
+  defaults:
+    _form: '\Drupal\eticsearch\Form\Analysis\NameForm'
+    _title: 'Add Character Filter'
+    component: 'char_filter'
+  requirements:
+    _permission: 'administer site configuration'
+
+eticsearch.char_filter.edit:
+  path: '/admin/config/search/eticsearch/char-filter/{name}/edit'
+  defaults:
+    _form: '\Drupal\eticsearch\Form\Analysis\CharFilterForm'
+    _title: 'Configure Character Filter'
+  requirements:
+    _permission: 'administer site configuration'
+
+eticsearch.char_filter.delete:
+  path: '/admin/config/search/eticsearch/char-filter/{name}/delete'
+  defaults:
+    _form: '\Drupal\eticsearch\Form\Analysis\DeleteForm'
+    _title: 'Delete Character Filter'
+    component: 'char_filter'
+  requirements:
+    _permission: 'administer site configuration'
+
+eticsearch.analyzer.list:
+  path: '/admin/config/search/eticsearch/analyzer'
+  defaults:
+    _controller: '\Drupal\eticsearch\Controller\AnalysisListController::list'
+    _title: 'Analyzers'
+    component: 'analyzer'
+  requirements:
+    _permission: 'administer site configuration'
+
+eticsearch.analyzer.add:
+  path: '/admin/config/search/eticsearch/analyzer/add'
+  defaults:
+    _form: '\Drupal\eticsearch\Form\Analysis\NameForm'
+    _title: 'Add Analyzer'
+    component: 'analyzer'
+  requirements:
+    _permission: 'administer site configuration'
+
+eticsearch.analyzer.edit:
+  path: '/admin/config/search/eticsearch/analyzer/{name}/edit'
+  defaults:
+    _form: '\Drupal\eticsearch\Form\Analysis\AnalyzerForm'
+    _title: 'Configure Analyzer'
+  requirements:
+    _permission: 'administer site configuration'
+
+eticsearch.analyzer.delete:
+  path: '/admin/config/search/eticsearch/analyzer/{name}/delete'
+  defaults:
+    _form: '\Drupal\eticsearch\Form\Analysis\DeleteForm'
+    _title: 'Delete Analyzer'
+    component: 'analyzer'
+  requirements:
+    _permission: 'administer site configuration'
+
+eticsearch.similarity.list:
+  path: '/admin/config/search/eticsearch/similarity'
+  defaults:
+    _controller: '\Drupal\eticsearch\Controller\AnalysisListController::list'
+    _title: 'Similarities'
+    component: 'similarity'
+  requirements:
+    _permission: 'administer site configuration'
+
+eticsearch.similarity.add:
+  path: '/admin/config/search/eticsearch/similarity/add'
+  defaults:
+    _form: '\Drupal\eticsearch\Form\Analysis\NameForm'
+    _title: 'Add Similarity'
+    component: 'similarity'
+  requirements:
+    _permission: 'administer site configuration'
+
+eticsearch.similarity.edit:
+  path: '/admin/config/search/eticsearch/similarity/{name}/edit'
+  defaults:
+    _form: '\Drupal\eticsearch\Form\Analysis\SimilarityForm'
+    _title: 'Configure Similarity'
+  requirements:
+    _permission: 'administer site configuration'
+
+eticsearch.similarity.delete:
+  path: '/admin/config/search/eticsearch/similarity/{name}/delete'
+  defaults:
+    _form: '\Drupal\eticsearch\Form\Analysis\DeleteForm'
+    _title: 'Delete Similarity'
+    component: 'similarity'
   requirements:
     _permission: 'administer site configuration'
